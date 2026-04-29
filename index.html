@@ -341,7 +341,7 @@ const App = (() => {
         const proj = document.getElementById('projectSelect').value;
         const task = document.getElementById('taskSelect').value;
         if (!proj || !task) { showToast(t('selectBoth'), 'warning'); return; }
-        if (!running) startTimer(); else confirmStop();
+        if (!running) startTimer(); else stopAndSave();
     }
 
     function startTimer() {
@@ -373,15 +373,6 @@ const App = (() => {
             document.getElementById('status').textContent = t('timing');
             saveState();
         }
-    }
-
-    function confirmStop() {
-        const elapsed = getElapsedMs();
-        if (elapsed > 300000) {
-            const mins = Math.floor(elapsed / 60000);
-            if (!confirm(`${t('confirmStop')} ${mins} ${t('min')} ?`)) return;
-        }
-        stopAndSave();
     }
 
     function stopAndSave() {
