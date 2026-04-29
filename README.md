@@ -16,13 +16,13 @@
 * **Multi-plateforme** : Interface Web App responsive adaptée aux navigateurs mobiles.
 * **Raccourcis Clavier** : `Espace` pour Start/Stop et `P` pour Pause.
 
-## 🚀 Installation & Configuration
+## 🚀 Installation & configuration
 
 ### 1. Préparation du Google Sheet
 1. Créez une nouvelle feuille Google Sheets.
 2. Accédez à **Extensions** > **Apps Script**.
 
-### 2. Copie du Code
+### 2. Copie du code
 1. Créez un fichier `Code.gs` et collez-y le contenu du script.
 2. Créez un fichier `index.html` et collez-y le code de l'interface.
 3. Enregistrez le projet.
@@ -31,7 +31,7 @@
 1. Actualisez votre feuille de calcul. Un menu **⏱️ Minuteur** apparaît.
 2. Cliquez sur **Minuteur** > **Ouvrir le suivi**. Les onglets `Config`, `Journal` et `Paramètres` seront créés automatiquement.
 
-### 4. Configuration des Projets
+### 4. Configuration des projets
 * Dans l'onglet **Config**, listez vos couples `Projet` / `Tâche`.
 * Dans l'onglet **Paramètres**, définissez vos heures cibles par jour (ex: Lundi = 8).
 
