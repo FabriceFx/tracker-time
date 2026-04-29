@@ -1,19 +1,40 @@
 /**
  * ============================================================
+ *  TRAQUEUR DE TEMPS — Google Apps Script
+ * ============================================================
+ *  Auteur      : Fabrice Faucheux
+ *  Description : Sidebar et Web App de suivi du temps de travail
+ *                intégrée à Google Sheets. Permet de chronomé-
+ *                trer des tâches par projet, de les enregistrer
+ *                dans un Journal, et de recevoir un rapport par
+ *                e-mail dès que l'objectif quotidien est atteint.
+ *  Onglets     : Config (projets/tâches), Journal (saisies),
+ *                Paramètres (heures/jour configurables)
+ *  Version     : 2.0
+ * ============================================================
+ */
+
+/**
+ * ============================================================
  *  CONFIGURATION GLOBALE
  * ============================================================
  */
 
-/** @const {number} Nombre d'heures par défaut si aucune config jour */
+/** @const {number} Nombre d'heures journalières par défaut (fallback si aucune config dans Paramètres) */
 const DEFAULT_BASE_HOURS = 8;
 
-/** @const {Array<string>} Jours de la semaine (index 0=dim, 1=lun...) */
+/** @const {Array<string>} Noms des jours en français, indexés comme Date.getDay() (0=Dimanche) */
 const DAYS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
 
 /**
- * Retourne le nombre d'heures-base pour aujourd'hui,
- * en lisant l'onglet Paramètres (colonne Jour / Heures).
- * @return {number}
+ * Retourne le nombre d'heures-base configuré pour le jour en cours.
+ *
+ * Lit l'onglet « Paramètres » (colonnes Jour / Heures) et cherche
+ * la ligne correspondant au jour de la semaine actuel (ex: Lundi → 8).
+ * Si l'onglet est absent ou vide, renvoie DEFAULT_BASE_HOURS.
+ *
+ * @return {number} Nombre d'heures cibles pour aujourd'hui
+ * @private
  */
 const getBaseHoursToday_ = () => {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -36,9 +57,14 @@ const getBaseHoursToday_ = () => {
 };
 
 /**
- * Retourne le nombre d'heures-base pour un jour donné (Date).
- * @param {Date} date
- * @return {number}
+ * Retourne le nombre d'heures-base configuré pour une date donnée.
+ *
+ * Identique à getBaseHoursToday_() mais accepte n'importe quelle Date.
+ * Utilisé par le rapport hebdomadaire pour afficher la cible de chaque jour.
+ *
+ * @param {Date} date - La date pour laquelle récupérer la base horaire
+ * @return {number} Nombre d'heures cibles pour ce jour
+ * @private
  */
 const getBaseHoursForDate_ = (date) => {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -60,8 +86,13 @@ const getBaseHoursForDate_ = (date) => {
 };
 
 /**
- * Retourne la date du jour au format dd/MM/yyyy (fuseau Spreadsheet).
- * @return {string}
+ * Retourne la date du jour au format dd/MM/yyyy.
+ *
+ * Utilise le fuseau horaire du Spreadsheet (pas celui du serveur Apps Script)
+ * pour garantir la cohérence avec les dates stockées dans le Journal.
+ *
+ * @return {string} Date du jour, ex : "29/04/2026"
+ * @private
  */
 const getTodayString_ = () => {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -69,9 +100,14 @@ const getTodayString_ = () => {
 };
 
 /**
- * Formate une date en dd/MM/yyyy dans le fuseau du Spreadsheet.
- * @param {Date|string} date
- * @return {string}
+ * Formate une cellule Date en chaîne dd/MM/yyyy.
+ *
+ * Google Sheets peut stocker les dates sous forme d'objet Date ou de string.
+ * Cette fonction normalise les deux cas dans le fuseau du Spreadsheet.
+ *
+ * @param {Date|string} date - Valeur brute lue depuis getValues()
+ * @return {string} Date formatée, ex : "29/04/2026"
+ * @private
  */
 const formatDateCell_ = (date) => {
   if (date instanceof Date) {
@@ -89,8 +125,18 @@ const formatDateCell_ = (date) => {
  */
 
 /**
- * S'assure que les onglets nécessaires existent, les crée sinon.
- * Appelé au onOpen et avant chaque opération critique.
+ * Vérifie et crée automatiquement les onglets nécessaires au fonctionnement.
+ *
+ * Crée les 3 onglets s'ils sont absents, avec en-têtes formatés,
+ * largeurs de colonnes et première ligne figée :
+ *   - « Config »     : liste des couples Projet / Tâche disponibles
+ *   - « Journal »    : historique de toutes les saisies de temps
+ *   - « Paramètres » : nombre d'heures cibles par jour de la semaine
+ *
+ * Appelé systématiquement à l'ouverture (onOpen) et avant chaque
+ * lecture/écriture pour garantir l'intégrité de la structure.
+ *
+ * @private
  */
 const ensureSheets_ = () => {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -139,7 +185,14 @@ const ensureSheets_ = () => {
  */
 
 /**
- * Menu personnalisé à l'ouverture du fichier.
+ * Crée le menu « ⏱️ Minuteur » dans la barre de menus Google Sheets.
+ *
+ * Déclenché automatiquement à l'ouverture du fichier (trigger onOpen).
+ * Initialise aussi les onglets via ensureSheets_() si nécessaire.
+ *
+ * Entrées du menu :
+ *   - « Ouvrir le suivi »            → showSidebar()
+ *   - « Ajouter 30min à la sélection » → addTimeToSelection()
  */
 const onOpen = () => {
   ensureSheets_();
@@ -152,7 +205,10 @@ const onOpen = () => {
 };
 
 /**
- * Affiche la barre latérale (Sidebar).
+ * Affiche la sidebar « Traqueur de temps » dans Google Sheets.
+ *
+ * Le titre de la sidebar est localisé (FR/EN) selon la locale du compte.
+ * La largeur est fixée à 320px pour un affichage optimal.
  */
 const showSidebar = () => {
   ensureSheets_();
@@ -165,9 +221,17 @@ const showSidebar = () => {
 };
 
 /**
- * Point d'entrée Web App (accès mobile via URL).
- * Déployer via : Extensions > Apps Script > Déployer > Application Web
- * @return {HtmlOutput}
+ * Point d'entrée Web App — permet l'accès depuis un navigateur mobile.
+ *
+ * Pour déployer :
+ *   Extensions → Apps Script → Déployer → Nouvelle application web
+ *   Exécuter en tant que : Moi | Accès : Toute personne avec le lien
+ *
+ * Ajoute automatiquement la balise viewport pour le responsive mobile
+ * et autorise l'intégration dans une iframe (ALLOWALL).
+ *
+ * @param {Object} e - Événement GET (non utilisé)
+ * @return {HtmlOutput} Page HTML servie au navigateur
  */
 const doGet = () => {
   ensureSheets_();
@@ -180,9 +244,14 @@ const doGet = () => {
 };
 
 /**
- * Retourne la locale de l'utilisateur ('fr' ou 'en').
- * Utilisé par le frontend pour l'internationalisation.
- * @return {string} 'fr' ou 'en'
+ * Détecte la langue de l'utilisateur à partir de la locale du Spreadsheet.
+ *
+ * Lit SpreadsheetApp.getSpreadsheetLocale() (ex: "fr_FR", "en_US") et
+ * retourne 'fr' ou 'en'. Utilisé par le frontend (index.html) pour
+ * appliquer les traductions via le dictionnaire I18N.
+ * En cas d'erreur (compte non connecté, script autonome), retourne 'fr'.
+ *
+ * @return {string} Code langue : 'fr' ou 'en'
  */
 const getUserLocale = () => {
   try {
@@ -202,8 +271,12 @@ const getUserLocale = () => {
  */
 
 /**
- * Récupère les projets et tâches depuis l'onglet Config.
- * @return {Array<Array<string>>} [[projet, tâche], ...]
+ * Lit la liste des projets et tâches depuis l'onglet « Config ».
+ *
+ * Appelé au démarrage de la sidebar pour alimenter les listes déroulantes.
+ * Les lignes vides (colonne Projet = "") sont filtrées automatiquement.
+ *
+ * @return {Array<Array<string>>} Tableau de paires [[projet, tâche], ...]
  */
 const getProjectsAndTasks = () => {
   ensureSheets_();
@@ -216,8 +289,14 @@ const getProjectsAndTasks = () => {
 };
 
 /**
- * Récupère les saisies du jour + la base d'heures du jour pour la sidebar.
- * @return {{ entries: Array<{project: string, task: string, hours: number}>, totalHours: number, baseHours: number }}
+ * Retourne les saisies du jour courant pour l'historique de la sidebar.
+ *
+ * Filtre le Journal sur la date d'aujourd'hui et cumule les heures.
+ * Retourne aussi baseHours (objectif du jour) pour mettre à jour la jauge.
+ *
+ * @return {{ entries: Array<{project: string, task: string, hours: number}>,
+ *            totalHours: number,
+ *            baseHours: number }}
  */
 const getTodayEntries = () => {
   ensureSheets_();
@@ -241,10 +320,16 @@ const getTodayEntries = () => {
 };
 
 /**
- * Calcule le total d'heures pour un jour donné.
- * @param {string} dateStr
- * @param {Array<Array>=} existingData
- * @return {number}
+ * Calcule le cumul d'heures enregistrées dans le Journal pour une date donnée.
+ *
+ * Accepte un tableau de données déjà lu (existingData) pour éviter
+ * une double lecture du Journal dans saveTimeEntry() — optimisation importante
+ * sur les gros fichiers.
+ *
+ * @param {string} dateStr     - Date au format dd/MM/yyyy
+ * @param {Array<Array>=} existingData - Données brutes du Journal (optionnel)
+ * @return {number} Total d'heures enregistrées pour ce jour
+ * @private
  */
 const getTotalHoursForDay_ = (dateStr, existingData) => {
   const data = existingData || SpreadsheetApp.getActiveSpreadsheet()
@@ -264,10 +349,20 @@ const getTotalHoursForDay = (dateStr) => getTotalHoursForDay_(dateStr);
  */
 
 /**
- * Sauvegarde une entrée depuis la sidebar.
- * Utilise la base d'heures du jour (variable).
+ * Enregistre une saisie de temps dans le Journal.
+ *
+ * Logique principale :
+ *  1. Verrou LockService pour éviter les doublons en cas de double-clic
+ *  2. Calcul de la durée disponible (baseHours - total du jour)
+ *  3. Si même Projet+Tâche existent aujourd'hui → cumul sur la ligne existante
+ *     Sinon → création d'une nouvelle ligne via appendRow()
+ *  4. Déclenchement de l'email si le seuil quotidien est atteint
+ *
  * @param {{ project: string, task: string, duration: number }} entry
- * @return {string}
+ *   - project  : nom du projet sélectionné
+ *   - task     : nom de la tâche sélectionnée
+ *   - duration : durée en heures (peut être décimal, ex: 1.5)
+ * @return {string} Message de confirmation (✅) ou d'avertissement (⚠️/⛔)
  */
 const saveTimeEntry = (entry) => {
   const lock = LockService.getScriptLock();
@@ -330,9 +425,16 @@ const saveTimeEntry = (entry) => {
 };
 
 /**
- * Sauvegarde une saisie manuelle (sans chrono).
+ * Enregistre une saisie manuelle (onglet « Saisie » de la sidebar, sans chrono).
+ *
+ * Valide les paramètres (projet, tâche, heures dans la plage autorisée)
+ * puis délègue à saveTimeEntry() pour la logique de cumul et d'email.
+ *
  * @param {{ project: string, task: string, hours: number }} entry
- * @return {string}
+ *   - project : nom du projet
+ *   - task    : nom de la tâche
+ *   - hours   : durée saisie manuellement (entre 0.01 et baseHours)
+ * @return {string} Message de résultat
  */
 const saveManualEntry = (entry) => {
   if (!entry.project || !entry.task) return '❌ Projet et tâche requis.';
@@ -352,8 +454,14 @@ const saveManualEntry = (entry) => {
  */
 
 /**
- * Ajoute du temps à la ligne sélectionnée dans le Journal.
- * @param {number} [hoursToAdd=0.5]
+ * Ajoute un incrément de temps à la ligne active dans l'onglet Journal.
+ *
+ * Accessible via le menu « ⏱️ Minuteur → Ajouter 30min à la sélection ».
+ * Vérifie que l'onglet actif est bien « Journal » et que la ligne
+ * correspond à la date d'aujourd'hui (interdit de modifier le passé).
+ * Respecte le quota quotidien et déclenche l'email si le seuil est atteint.
+ *
+ * @param {number} [hoursToAdd=0.5] - Heures à ajouter (défaut : 0.5 = 30min)
  */
 const addTimeToSelection = (hoursToAdd = 0.5) => {
   ensureSheets_();
@@ -401,11 +509,15 @@ const addTimeToSelection = (hoursToAdd = 0.5) => {
  */
 
 /**
- * Vérifie si le seuil quotidien est atteint et envoie le rapport.
- * L'email est envoyé UNE SEULE FOIS par jour, dès que le total >= baseHours.
- * @param {number} newTotal
- * @param {number} baseHours
- * @param {string} todayStr
+ * Vérifie si le total du jour atteint l'objectif et envoie le rapport e-mail.
+ *
+ * La clé « sent_seuil_dd/MM/yyyy » est stockée dans UserProperties pour
+ * garantir qu'un seul email est envoyé par jour, même si plusieurs saisies
+ * franchissent le seuil consécutivement.
+ *
+ * @param {number} newTotal   - Total d'heures après la dernière saisie
+ * @param {number} baseHours  - Objectif quotidien en heures
+ * @param {string} todayStr   - Date du jour au format dd/MM/yyyy
  * @private
  */
 const checkAndSendMail_ = (newTotal, baseHours, todayStr) => {
@@ -418,8 +530,15 @@ const checkAndSendMail_ = (newTotal, baseHours, todayStr) => {
 };
 
 /**
- * Génère et envoie le rapport HTML quotidien par email.
- * @param {string} [reason="Point automatique"]
+ * Génère et envoie le rapport de ventilation journalière par e-mail.
+ *
+ * Lit toutes les lignes du Journal correspondant à aujourd'hui,
+ * agrège les heures par couple Projet-Tâche, calcule le total en jours
+ * (sur la base du jour en cours) et envoie un e-mail HTML formaté
+ * à l'adresse du compte Google actif.
+ *
+ * @param {string} [reason='Point automatique']
+ *   Motif affiché dans le badge de statut de l'e-mail
  */
 const sendDailyReport = (reason = 'Point automatique') => {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
@@ -492,9 +611,18 @@ const sendDailyReport = (reason = 'Point automatique') => {
  */
 
 /**
- * Génère un rapport hebdomadaire (lundi à dimanche en cours).
- * @param {string} [lang='fr'] - Locale 'fr' ou 'en' pour les noms de jours
- * @return {{ days: Object, weekTotal: number }}
+ * Génère les données du rapport hebdomadaire (lundi au dimanche en cours).
+ *
+ * Retourne un objet indexé par clé « Lun 28/04 » (ou « Mon 28/04 » en EN)
+ * contenant pour chaque jour : les saisies détaillées, le total d'heures
+ * et la base horaire configurée (issue de l'onglet Paramètres).
+ *
+ * Les noms de jours sont localisés via le paramètre lang car
+ * Utilities.formatDate('EEE') renvoie systématiquement l'anglais.
+ *
+ * @param {string} [lang='fr'] - Locale transmise par le client ('fr' ou 'en')
+ * @return {{ days: Object<string, {entries: Array, total: number, baseHours: number}>,
+ *            weekTotal: number }}
  */
 const getWeeklyReport = (lang) => {
   ensureSheets_();
