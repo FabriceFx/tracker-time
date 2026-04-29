@@ -13,32 +13,32 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 
 ## ✨ Fonctionnalités clés
 
-### 🎯 Suivi et Saisie
+### 🎯 Suivi et saisie
 * **Chronomètre Interactif** : Lancez, mettez en pause et arrêtez le temps passé sur une tâche directement depuis la barre latérale.
-* **Saisie Manuelle** : Ajoutez des heures a posteriori via un formulaire simple.
-* **Ajout Rapide** : Menu personnalisé pour ajouter facilement 30 minutes à une ligne existante dans le journal.
-* **Cumul Intelligent** : Les saisies pour le même projet et la même tâche le même jour sont automatiquement fusionnées sur une seule ligne.
+* **Saisie manuelle** : Ajoutez des heures a posteriori via un formulaire simple.
+* **Ajout rapide** : Menu personnalisé pour ajouter facilement 30 minutes à une ligne existante dans le journal.
+* **Cumul intelligent** : Les saisies pour le même projet et la même tâche le même jour sont automatiquement fusionnées sur une seule ligne.
 
-### ⚙️ Automatisation & Personnalisation
+### ⚙️ Automatisation & personnalisation
 * **Auto-configuration** : Les onglets nécessaires (`Config`, `Journal`, `Paramètres`) sont créés automatiquement s'ils n'existent pas lors du premier lancement.
-* **Horaires Dynamiques** : Définissez un nombre d'heures cible différent pour chaque jour de la semaine (ex: 8h du Lundi au Jeudi, 7h le Vendredi).
-* **Rapports Automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* de façon automatique dès que votre quota d'heures du jour est atteint.
+* **Horaires dynamiques** : Définissez un nombre d'heures cible différent pour chaque jour de la semaine (ex: 8h du Lundi au Jeudi, 7h le Vendredi).
+* **Rapports automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* de façon automatique dès que votre quota d'heures du jour est atteint.
 
-### 🖥️ Expérience Utilisateur (UX)
-* **Jauge de Progression** : Visualisation claire et en temps réel de votre avancement quotidien via une jauge circulaire SVG dynamique.
-* **Rapport Hebdomadaire** : Consultez le total de vos heures et la répartition sur la semaine en cours directement depuis la sidebar.
-* **Mode Sombre** : L'interface s'adapte automatiquement au thème clair/sombre de votre système (Dark Mode).
-* **Raccourcis Clavier** : Appuyez sur `Espace` pour Lancer/Arrêter, et sur `P` pour mettre en Pause.
+### 🖥️ Expérience utilisateur (UX)
+* **Jauge de progression** : Visualisation claire et en temps réel de votre avancement quotidien via une jauge circulaire SVG dynamique.
+* **Rapport hebdomadaire** : Consultez le total de vos heures et la répartition sur la semaine en cours directement depuis la sidebar.
+* **Mode sombre** : L'interface s'adapte automatiquement au thème clair/sombre de votre système (Dark Mode).
+* **Raccourcis clavier** : Appuyez sur `Espace` pour Lancer/Arrêter, et sur `P` pour mettre en Pause.
 * **Bilingue (i18n)** : L'interface s'affiche automatiquement en Français ou en Anglais selon les paramètres régionaux de votre compte Google.
 
-### 🔒 Robustesse & Sécurité
+### 🔒 Robustesse & sécurité
 * **Protection XSS** : Toutes les entrées et listes déroulantes sont assainies pour prévenir les failles de sécurité.
 * **Persistance (LocalStorage)** : Votre chronomètre continue de tourner en arrière-plan et survit aux rafraîchissements de la page.
-* **Gestion de la Concurrence** : Utilisation du `LockService` de Google pour garantir l'intégrité des données si plusieurs requêtes sont lancées simultanément.
+* **Gestion de la concurrence** : Utilisation du `LockService` de Google pour garantir l'intégrité des données si plusieurs requêtes sont lancées simultanément.
 
 ---
 
-## 🚀 Installation & Déploiement
+## 🚀 Installation & déploiement
 
 ### 1. Préparation du Google Sheet
 1. Créez un nouveau fichier Google Sheets.
@@ -59,7 +59,7 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 * Dans l'onglet **Config**, ajoutez vos couples `Projet` / `Tâche`.
 * Dans l'onglet **Paramètres**, ajustez vos objectifs d'heures pour chaque jour de la semaine.
 
-### 5. Utilisation sur Mobile (Web App)
+### 5. Utilisation sur mobile (Web App)
 Pour utiliser le traqueur depuis votre smartphone :
 1. Dans Apps Script, cliquez sur **Déployer** > **Nouvelle application web**.
 2. Exécuter en tant que : *Moi*.
@@ -68,7 +68,7 @@ Pour utiliser le traqueur depuis votre smartphone :
 
 ---
 
-## 🛠 Technologies & Architecture
+## 🛠 Technologies & architecture
 
 * **Backend** : Google Apps Script (V8).
 * **Frontend** : HTML5, CSS3 (Variables, Flexbox, UI Material 3 adaptative), Vanilla JS (ES6).
