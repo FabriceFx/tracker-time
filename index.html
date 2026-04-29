@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6750A4; --on-primary: #fff; --primary-container: #EADDFF;
+            --surface: #FFFBFE; --surface-variant: #F5F0FA; --outline: #79747E;
+            --on-surface: #1C1B1F; --error: #B3261E; --success: #1B873B;
+            --warning: #E8A317; --radius: 16px;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --primary: #D0BCFF; --on-primary: #381E72; --primary-container: #4F378B;
+                --surface: #1C1B1F; --surface-variant: #2B2930; --outline: #938F99;
+                --on-surface: #E6E1E5; --error: #F2B8B5; --success: #7DD99A; --warning: #F5D480;
+            }
+            select, input { background: var(--surface-variant) !important; color: var(--on-surface) !important; border-color: var(--outline) !important; }
+        }
+        * { box-sizing: border-box; margin: 0; }
+        body { font-family: 'Inter', sans-serif; background: var(--surface); padding: 12px; color: var(--on-surface); }
+        .card { background: var(--surface-variant); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(121,116,126,0.15); transition: box-shadow 0.2s; }
+        .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+        .section-title { font-size: 11px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+        label { font-size: 11px; color: var(--outline); margin-left: 2px; display: block; margin-bottom: 3px; }
+        select, input[type="number"] {
+            width: 100%; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px;
+            border: 1px solid var(--outline); background: #fff; font-size: 13px; font-family: inherit;
+            transition: border-color 0.2s; outline: none;
+        }
+        select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(103,80,164,0.15); }
+
+        /* === GAUGE === */
+        .gauge-wrap { text-align: center; margin: 8px 0; position: relative; }
+        .gauge-wrap svg { width: 140px; height: 140px; }
+        .gauge-track { fill: none; stroke: rgba(103,80,164,0.12); stroke-width: 10; }
+        .gauge-fill { fill: none; stroke: var(--primary); stroke-width: 10; stroke-linecap: round;
+            transition: stroke-dashoffset 0.6s ease, stroke 0.3s; }
+        .gauge-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
+        .gauge-hours { font-size: 28px; font-weight: 300; font-variant-numeric: tabular-nums; }
+        .gauge-label { font-size: 10px; color: var(--outline); }
+
+        /* === TIMER === */
+        .timer-display { font-size: 2.6rem; text-align: center; font-weight: 300; margin: 4px 0;
+            font-variant-numeric: tabular-nums; letter-spacing: 2px; }
+        .timer-display.running { animation: pulse 1.5s ease-in-out infinite; }
+        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+
+        /* === BUTTONS === */
+        .btn-row { display: flex; gap: 8px; margin-top: 8px; }
+        .btn { flex: 1; height: 44px; border-radius: 22px; border: none; font-weight: 500; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit;
+            font-size: 13px; transition: all 0.2s; position: relative; overflow: hidden; }
+        .btn .material-icons-round { font-size: 20px; }
+        .btn-primary { background: var(--primary); color: var(--on-primary); }
+        .btn-primary:hover { box-shadow: 0 4px 12px rgba(103,80,164,0.35); transform: translateY(-1px); }
+        .btn-danger { background: var(--error); color: #fff; }
+        .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
+        .btn-outline:hover { background: var(--primary-container); }
+        .btn-secondary { background: var(--primary-container); color: var(--on-primary-container, #21005D); }
+        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
+        .btn-sm { height: 36px; border-radius: 18px; font-size: 12px; }
+
+        /* === TOAST === */
+        .toast { position: fixed; bottom: 16px; left: 12px; right: 12px; padding: 12px 16px; border-radius: 12px;
+            font-size: 13px; font-weight: 500; z-index: 100; transform: translateY(100px); opacity: 0;
+            transition: all 0.35s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; gap: 8px; }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-success { background: var(--success); color: #fff; }
+        .toast-error { background: var(--error); color: #fff; }
+        .toast-warning { background: var(--warning); color: #1C1B1F; }
+        .toast .material-icons-round { font-size: 18px; }
+
+        /* === HISTORY === */
+        .history-item { display: flex; justify-content: space-between; align-items: center;
+            padding: 8px 0; border-bottom: 1px solid rgba(121,116,126,0.1); font-size: 12px; }
+        .history-item:last-child { border-bottom: none; }
+        .history-proj { font-weight: 500; color: var(--on-surface); }
+        .history-task { color: var(--outline); font-size: 11px; }
+        .history-hours { font-weight: 600; color: var(--primary); white-space: nowrap; }
+        .history-empty { text-align: center; color: var(--outline); font-size: 12px; padding: 16px 0; }
+
+        /* === TABS === */
+        .tabs { display: flex; border-bottom: 2px solid rgba(121,116,126,0.12); margin-bottom: 12px; }
+        .tab { flex: 1; text-align: center; padding: 8px 4px; font-size: 12px; font-weight: 500;
+            color: var(--outline); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
+            transition: all 0.2s; }
+        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
+        .tab-content { display: none; } .tab-content.active { display: block; }
+
+        /* === WEEKLY === */
+        .week-day { margin-bottom: 8px; }
+        .week-day-header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;
+            color: var(--on-surface); margin-bottom: 4px; padding: 4px 0; border-bottom: 1px solid rgba(121,116,126,0.1); }
+        .week-day-total { color: var(--primary); }
+        .week-entry { font-size: 11px; color: var(--outline); padding: 2px 0 2px 8px; }
+        .week-summary { text-align: center; padding: 12px; font-size: 14px; font-weight: 500; color: var(--primary); }
+
+        .status-text { font-size: 11px; text-align: center; color: var(--outline); margin-top: 8px; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <!-- SÉLECTION PROJET / TÂCHE -->
+    <div class="card">
+        <div class="section-title">Projet & Tâche</div>
+        <label>Projet</label>
+        <select id="projectSelect"><option value="">Chargement...</option></select>
+        <label>Tâche</label>
+        <select id="taskSelect"><option value="">Choisir un projet d'abord</option></select>
+    </div>
+
+    <!-- TABS : Chrono / Saisie manuelle -->
+    <div class="card">
+        <div class="tabs">
+            <div class="tab active" data-tab="chrono" onclick="App.switchTab('chrono')">
+                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">timer</span> Chrono
+            </div>
+            <div class="tab" data-tab="manual" onclick="App.switchTab('manual')">
+                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">edit</span> Saisie
+            </div>
+        </div>
+
+        <!-- Tab Chrono -->
+        <div id="tab-chrono" class="tab-content active">
+            <div class="timer-display" id="display">00:00:00</div>
+            <div class="btn-row">
+                <button id="mainBtn" class="btn btn-primary" onclick="App.toggleTimer()">
+                    <span class="material-icons-round">play_arrow</span> LANCER
+                </button>
+                <button id="pauseBtn" class="btn btn-outline hidden" onclick="App.pauseTimer()">
+                    <span class="material-icons-round">pause</span>
+                </button>
+            </div>
+            <p class="status-text" id="status">Prêt pour Planview</p>
+        </div>
+
+        <!-- Tab Saisie manuelle -->
+        <div id="tab-manual" class="tab-content">
+            <label>Durée (heures)</label>
+            <input type="number" id="manualHours" min="0.01" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5">
+            <button class="btn btn-primary" onclick="App.saveManual()">
+                <span class="material-icons-round">save</span> Enregistrer
+            </button>
+        </div>
+    </div>
+
+    <!-- JAUGE CIRCULAIRE -->
+    <div class="card">
+        <div class="section-title">Progression du jour</div>
+        <div class="gauge-wrap">
+            <svg viewBox="0 0 100 100">
+                <circle class="gauge-track" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"/>
+                <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"
+                    stroke-dasharray="251.33" stroke-dashoffset="251.33"/>
+            </svg>
+            <div class="gauge-text">
+                <div class="gauge-hours" id="gaugeHours">0.00h</div>
+                <div class="gauge-label" id="gaugeLabel">/ 8h</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- HISTORIQUE / HEBDO -->
+    <div class="card">
+        <div class="tabs">
+            <div class="tab active" data-tab="today" onclick="App.switchTab('today')">Aujourd'hui</div>
+            <div class="tab" data-tab="week" onclick="App.switchTab('week')">Semaine</div>
+        </div>
+        <div id="tab-today" class="tab-content active">
+            <div id="historyList"><div class="history-empty">Aucune saisie aujourd'hui</div></div>
+        </div>
+        <div id="tab-week" class="tab-content">
+            <div id="weekReport"><div class="history-empty">Chargement...</div></div>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"><span class="material-icons-round" id="toastIcon">check_circle</span><span id="toastMsg"></span></div>
+
+    <!-- RACCOURCIS -->
+    <div class="card" style="padding:10px 16px;">
+        <div style="font-size:10px;color:var(--outline);text-align:center;">
+            <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">Espace</kbd> Lancer/Arrêter &nbsp;
+            <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">P</kbd> Pause
+        </div>
+    </div>
+
+<script>
+/**
+ * Application principale — encapsulée dans un objet App.
+ * Gère le chronomètre, la persistence localStorage, les toasts et l'historique.
+ */
+const App = (() => {
+    /** @type {Date|null} */   let startTime = null;
+    /** @type {number|null} */ let timerInterval = null;
+    /** @type {boolean} */     let running = false;
+    /** @type {boolean} */     let paused = false;
+    /** @type {number} */      let pausedElapsed = 0;
+    /** @type {Array} */       let fullData = [];
+    /** @type {number} */      let baseH = 8; // Mis à jour dynamiquement depuis le serveur
+    const STORAGE_KEY = 'planview_timer_state';
+    const CIRCUMFERENCE = 2 * Math.PI * 40; // ~251.33
+
+    // ─── INIT ───
+    function init() {
+        restoreState();
+        loadProjects();
+        loadTodayHistory();
+
+        document.getElementById('projectSelect').addEventListener('change', updateTaskDropdown);
+    }
+
+    // ─── PROJECTS / TASKS (XSS-safe) ───
+    function loadProjects() {
+        google.script.run
+            .withSuccessHandler(data => {
+                fullData = data || [];
+                const sel = document.getElementById('projectSelect');
+                sel.innerHTML = '';
+                addOption(sel, '', '-- Sélectionner le projet --');
+                const projects = [...new Set(data.map(r => r[0]).filter(Boolean))];
+                projects.forEach(p => addOption(sel, p, p));
+
+                // Restore saved project
+                const saved = loadState();
+                if (saved && saved.project) {
+                    sel.value = saved.project;
+                    updateTaskDropdown();
+                    if (saved.task) document.getElementById('taskSelect').value = saved.task;
+                }
+            })
+            .withFailureHandler(err => showToast('Erreur chargement projets', 'error'))
+            .getProjectsAndTasks();
+    }
+
+    /** Creates an option element safely (no innerHTML XSS) */
+    function addOption(select, value, text) {
+        const opt = document.createElement('option');
+        opt.value = value;
+        opt.textContent = text;
+        select.appendChild(opt);
+    }
+
+    function updateTaskDropdown() {
+        const proj = document.getElementById('projectSelect').value;
+        const sel = document.getElementById('taskSelect');
+        sel.innerHTML = '';
+        if (!proj) { addOption(sel, '', "Choisir un projet d'abord"); return; }
+        addOption(sel, '', '-- Sélectionner la tâche --');
+        fullData.filter(r => r[0] === proj).forEach(r => { if (r[1]) addOption(sel, r[1], r[1]); });
+    }
+
+    // ─── TABS ───
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabId));
+        if (tabId === 'week') loadWeekReport();
+    }
+
+    // ─── TIMER ───
+    function toggleTimer() {
+        const proj = document.getElementById('projectSelect').value;
+        const task = document.getElementById('taskSelect').value;
+        if (!proj || !task) { showToast('Sélectionnez un projet ET une tâche.', 'warning'); return; }
+        if (!running) startTimer(); else confirmStop();
+    }
+
+    function startTimer() {
+        startTime = new Date();
+        pausedElapsed = 0;
+        paused = false;
+        running = true;
+        timerInterval = setInterval(updateDisplay, 1000);
+        updateTimerUI('running');
+        saveState();
+    }
+
+    function pauseTimer() {
+        if (!running) return;
+        if (!paused) {
+            clearInterval(timerInterval);
+            pausedElapsed += (new Date() - startTime);
+            paused = true;
+            document.getElementById('display').classList.remove('running');
+            document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
+            document.getElementById('status').textContent = 'En pause';
+            saveState();
+        } else {
+            startTime = new Date();
+            paused = false;
+            timerInterval = setInterval(updateDisplay, 1000);
+            document.getElementById('display').classList.add('running');
+            document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">pause</span>';
+            document.getElementById('status').textContent = 'Chronométrage en cours…';
+            saveState();
+        }
+    }
+
+    function confirmStop() {
+        const elapsed = getElapsedMs();
+        if (elapsed > 300000) { // >5 min => confirm
+            const mins = Math.floor(elapsed / 60000);
+            if (!confirm(`Arrêter et enregistrer ${mins} min ?`)) return;
+        }
+        stopAndSave();
+    }
+
+    function stopAndSave() {
+        clearInterval(timerInterval);
+        const durationHours = getElapsedMs() / 3600000;
+        const entry = {
+            project: document.getElementById('projectSelect').value,
+            task: document.getElementById('taskSelect').value,
+            duration: durationHours
+        };
+        document.getElementById('status').textContent = 'Enregistrement…';
+        google.script.run
+            .withSuccessHandler(msg => { showToast(msg || 'Enregistré !', msg && msg.startsWith('⚠') ? 'warning' : 'success'); resetUI(); loadTodayHistory(); })
+            .withFailureHandler(err => { showToast('Erreur : ' + err.message, 'error'); resetUI(); })
+            .saveTimeEntry(entry);
+        clearState();
+    }
+
+    function getElapsedMs() {
+        if (paused) return pausedElapsed;
+        return pausedElapsed + (new Date() - startTime);
+    }
+
+    function updateDisplay() {
+        const diff = getElapsedMs();
+        const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
+        const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+        const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+        document.getElementById('display').textContent = `${h}:${m}:${s}`;
+    }
+
+    function updateTimerUI(state) {
+        const btn = document.getElementById('mainBtn');
+        const pauseBtn = document.getElementById('pauseBtn');
+        const display = document.getElementById('display');
+        if (state === 'running') {
+            btn.innerHTML = '<span class="material-icons-round">stop</span> ARRÊTER';
+            btn.className = 'btn btn-danger';
+            pauseBtn.classList.remove('hidden');
+            display.classList.add('running');
+            document.getElementById('status').textContent = 'Chronométrage en cours…';
+        } else {
+            btn.innerHTML = '<span class="material-icons-round">play_arrow</span> LANCER';
+            btn.className = 'btn btn-primary';
+            pauseBtn.classList.add('hidden');
+            display.classList.remove('running');
+        }
+    }
+
+    function resetUI() {
+        running = false; paused = false; pausedElapsed = 0;
+        document.getElementById('display').textContent = '00:00:00';
+        updateTimerUI('idle');
+        document.getElementById('status').textContent = 'Prêt pour Planview';
+    }
+
+    // ─── MANUAL ENTRY ───
+    function saveManual() {
+        const proj = document.getElementById('projectSelect').value;
+        const task = document.getElementById('taskSelect').value;
+        const hours = parseFloat(document.getElementById('manualHours').value);
+        if (!proj || !task) { showToast('Sélectionnez projet et tâche.', 'warning'); return; }
+        if (isNaN(hours) || hours <= 0) { showToast('Durée invalide.', 'error'); return; }
+        google.script.run
+            .withSuccessHandler(msg => { showToast(msg, msg && msg.startsWith('⚠') ? 'warning' : 'success'); loadTodayHistory(); })
+            .withFailureHandler(err => showToast('Erreur : ' + err.message, 'error'))
+            .saveManualEntry({ project: proj, task: task, hours: hours });
+    }
+
+    // ─── PERSISTENCE (localStorage) ───
+    function saveState() {
+        const state = {
+            startTime: startTime ? startTime.getTime() : null,
+            running, paused, pausedElapsed,
+            project: document.getElementById('projectSelect').value,
+            task: document.getElementById('taskSelect').value
+        };
+        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
+    }
+    function loadState() {
+        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; }
+    }
+    function clearState() {
+        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
+    }
+    function restoreState() {
+        const s = loadState();
+        if (!s || !s.running) return;
+        running = true;
+        pausedElapsed = s.pausedElapsed || 0;
+        paused = s.paused || false;
+        if (paused) {
+            startTime = null;
+            updateTimerUI('running');
+            document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
+            document.getElementById('status').textContent = 'En pause (restauré)';
+            updateDisplay();
+        } else {
+            startTime = new Date(s.startTime);
+            timerInterval = setInterval(updateDisplay, 1000);
+            updateTimerUI('running');
+            updateDisplay();
+        }
+    }
+
+    // ─── GAUGE & HISTORY ───
+    function loadTodayHistory() {
+        google.script.run
+            .withSuccessHandler(result => {
+                baseH = result.baseHours || 8;
+                document.getElementById('gaugeLabel').textContent = '/ ' + baseH + 'h';
+                renderHistory(result.entries);
+                updateGauge(result.totalHours);
+            })
+            .withFailureHandler(() => {})
+            .getTodayEntries();
+    }
+
+    function renderHistory(entries) {
+        const el = document.getElementById('historyList');
+        if (!entries || !entries.length) { el.innerHTML = '<div class="history-empty">Aucune saisie aujourd\'hui</div>'; return; }
+        el.innerHTML = entries.map(e => `
+            <div class="history-item">
+                <div><div class="history-proj">${esc(e.project)}</div><div class="history-task">${esc(e.task)}</div></div>
+                <div class="history-hours">${e.hours.toFixed(2)}h</div>
+            </div>`).join('');
+    }
+
+    function updateGauge(totalHours) {
+        const max = baseH || 8;
+        const pct = max > 0 ? Math.min(totalHours / max, 1) : 0;
+        const offset = CIRCUMFERENCE * (1 - pct);
+        const fill = document.getElementById('gaugeFill');
+        fill.style.strokeDashoffset = offset;
+        fill.style.stroke = pct < 0.75 ? 'var(--success)' : pct < 0.94 ? 'var(--warning)' : 'var(--error)';
+        document.getElementById('gaugeHours').textContent = totalHours.toFixed(2) + 'h';
+    }
+
+    // ─── WEEKLY ───
+    function loadWeekReport() {
+        document.getElementById('weekReport').innerHTML = '<div class="history-empty">Chargement…</div>';
+        google.script.run
+            .withSuccessHandler(renderWeek)
+            .withFailureHandler(() => { document.getElementById('weekReport').innerHTML = '<div class="history-empty">Erreur</div>'; })
+            .getWeeklyReport();
+    }
+
+    function renderWeek(data) {
+        const el = document.getElementById('weekReport');
+        if (!data || !data.days) { el.innerHTML = '<div class="history-empty">Pas de données</div>'; return; }
+        let html = '';
+        let totalBase = 0;
+        Object.entries(data.days).forEach(([day, info]) => {
+            const bh = info.baseHours || 8;
+            totalBase += bh;
+            const pct = bh > 0 ? Math.round((info.total / bh) * 100) : 0;
+            const color = pct >= 100 ? 'var(--success)' : pct >= 75 ? 'var(--warning)' : 'var(--outline)';
+            html += `<div class="week-day"><div class="week-day-header"><span>${esc(day)} <span style="font-weight:400;font-size:10px;color:var(--outline)">(${bh}h)</span></span><span class="week-day-total" style="color:${color}">${info.total.toFixed(2)}h</span></div>`;
+            if (info.entries.length) {
+                info.entries.forEach(e => { html += `<div class="week-entry">${esc(e.project)} — ${esc(e.task)} : ${e.hours.toFixed(2)}h</div>`; });
+            }
+            html += '</div>';
+        });
+        const avgBase = totalBase > 0 ? totalBase : 40;
+        html += `<div class="week-summary">Total : ${data.weekTotal.toFixed(2)}h / ${totalBase}h (${(data.weekTotal / avgBase * 5).toFixed(2)} j)</div>`;
+        el.innerHTML = html;
+    }
+
+    // ─── TOAST ───
+    function showToast(msg, type = 'success') {
+        const el = document.getElementById('toast');
+        const icon = document.getElementById('toastIcon');
+        el.className = 'toast toast-' + type;
+        icon.textContent = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'warning';
+        document.getElementById('toastMsg').textContent = msg;
+        el.classList.add('show');
+        setTimeout(() => el.classList.remove('show'), 3500);
+    }
+
+    /** Escape HTML to prevent XSS */
+    function esc(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    // ─── KEYBOARD SHORTCUTS ───
+    document.addEventListener('keydown', e => {
+        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+        if (e.code === 'Space') { e.preventDefault(); toggleTimer(); }
+        if (e.code === 'KeyP') { e.preventDefault(); pauseTimer(); }
+    });
+
+    // ─── PUBLIC API ───
+    return { init, toggleTimer, pauseTimer, saveManual, switchTab };
+})();
+
+window.onload = App.init;
+</script>
+</body>
+</html>
