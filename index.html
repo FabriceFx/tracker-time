@@ -105,21 +105,21 @@
 <body>
     <!-- SÉLECTION PROJET / TÂCHE -->
     <div class="card">
-        <div class="section-title">Projet & Tâche</div>
-        <label>Projet</label>
-        <select id="projectSelect"><option value="">Chargement...</option></select>
-        <label>Tâche</label>
-        <select id="taskSelect"><option value="">Choisir un projet d'abord</option></select>
+        <div class="section-title" data-i18n="projectTask"></div>
+        <label data-i18n="project"></label>
+        <select id="projectSelect"><option value="" data-i18n="loading"></option></select>
+        <label data-i18n="task"></label>
+        <select id="taskSelect"><option value="" data-i18n="chooseProjectFirst"></option></select>
     </div>
 
     <!-- TABS : Chrono / Saisie manuelle -->
     <div class="card">
         <div class="tabs">
             <div class="tab active" data-tab="chrono" onclick="App.switchTab('chrono')">
-                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">timer</span> Chrono
+                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">timer</span> <span data-i18n="tabChrono"></span>
             </div>
             <div class="tab" data-tab="manual" onclick="App.switchTab('manual')">
-                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">edit</span> Saisie
+                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">edit</span> <span data-i18n="tabManual"></span>
             </div>
         </div>
 
@@ -128,28 +128,28 @@
             <div class="timer-display" id="display">00:00:00</div>
             <div class="btn-row">
                 <button id="mainBtn" class="btn btn-primary" onclick="App.toggleTimer()">
-                    <span class="material-icons-round">play_arrow</span> LANCER
+                    <span class="material-icons-round">play_arrow</span> <span data-i18n="start"></span>
                 </button>
                 <button id="pauseBtn" class="btn btn-outline hidden" onclick="App.pauseTimer()">
                     <span class="material-icons-round">pause</span>
                 </button>
             </div>
-            <p class="status-text" id="status">Prêt pour Planview</p>
+            <p class="status-text" id="status" data-i18n="ready"></p>
         </div>
 
         <!-- Tab Saisie manuelle -->
         <div id="tab-manual" class="tab-content">
-            <label>Durée (heures)</label>
+            <label data-i18n="durationHours"></label>
             <input type="number" id="manualHours" min="0.01" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5">
             <button class="btn btn-primary" onclick="App.saveManual()">
-                <span class="material-icons-round">save</span> Enregistrer
+                <span class="material-icons-round">save</span> <span data-i18n="save"></span>
             </button>
         </div>
     </div>
 
     <!-- JAUGE CIRCULAIRE -->
     <div class="card">
-        <div class="section-title">Progression du jour</div>
+        <div class="section-title" data-i18n="dailyProgress"></div>
         <div class="gauge-wrap">
             <svg viewBox="0 0 100 100">
                 <circle class="gauge-track" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"/>
@@ -166,8 +166,8 @@
     <!-- HISTORIQUE / HEBDO -->
     <div class="card">
         <div class="tabs">
-            <div class="tab active" data-tab="today" onclick="App.switchTab('today')">Aujourd'hui</div>
-            <div class="tab" data-tab="week" onclick="App.switchTab('week')">Semaine</div>
+            <div class="tab active" data-tab="today" onclick="App.switchTab('today')" data-i18n="today"></div>
+            <div class="tab" data-tab="week" onclick="App.switchTab('week')" data-i18n="week"></div>
         </div>
         <div id="tab-today" class="tab-content active">
             <div id="historyList"><div class="history-empty">Aucune saisie aujourd'hui</div></div>
@@ -183,9 +183,15 @@
     <!-- RACCOURCIS -->
     <div class="card" style="padding:10px 16px;">
         <div style="font-size:10px;color:var(--outline);text-align:center;">
-            <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">Espace</kbd> Lancer/Arrêter &nbsp;
+            <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">Space</kbd> <span data-i18n="kbStartStop"></span> &nbsp;
             <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">P</kbd> Pause
         </div>
+    </div>
+
+    <!-- CRÉDIT DÉVELOPPEUR -->
+    <div style="text-align:center;padding:8px 0 4px;font-size:9px;color:var(--outline);opacity:0.7;">
+        <span class="material-icons-round" style="font-size:11px;vertical-align:middle">code</span>
+        <span data-i18n="developedBy"></span> <strong>Fabrice Faucheux</strong>
     </div>
 
 <script>
@@ -200,15 +206,85 @@ const App = (() => {
     /** @type {boolean} */     let paused = false;
     /** @type {number} */      let pausedElapsed = 0;
     /** @type {Array} */       let fullData = [];
-    /** @type {number} */      let baseH = 8; // Mis à jour dynamiquement depuis le serveur
-    const STORAGE_KEY = 'planview_timer_state';
-    const CIRCUMFERENCE = 2 * Math.PI * 40; // ~251.33
+    /** @type {number} */      let baseH = 8;
+    /** @type {string} */      let lang = 'fr';
+    const STORAGE_KEY = 'timetracker_state';
+    const CIRCUMFERENCE = 2 * Math.PI * 40;
+
+    // ─── I18N ───
+    const I18N = {
+        fr: {
+            projectTask: 'Projet & Tâche', project: 'Projet', task: 'Tâche',
+            loading: 'Chargement...', chooseProjectFirst: "Choisir un projet d'abord",
+            selectProject: '-- Sélectionner le projet --', selectTask: '-- Sélectionner la tâche --',
+            tabChrono: 'Chrono', tabManual: 'Saisie',
+            start: 'LANCER', stop: 'ARRÊTER',
+            ready: 'Prêt', recording: 'Enregistrement…', timing: 'Chronométrage en cours…',
+            paused: 'En pause', pausedRestored: 'En pause (restauré)',
+            durationHours: 'Durée (heures)', save: 'Enregistrer',
+            dailyProgress: 'Progression du jour', today: "Aujourd'hui", week: 'Semaine',
+            noEntries: "Aucune saisie aujourd'hui", loadingData: 'Chargement…',
+            error: 'Erreur', noData: 'Pas de données',
+            kbStartStop: 'Lancer/Arrêter',
+            selectBoth: 'Sélectionnez un projet ET une tâche.',
+            selectBothShort: 'Sélectionnez projet et tâche.',
+            invalidDuration: 'Durée invalide.',
+            confirmStop: 'Arrêter et enregistrer',
+            min: 'min', totalWeek: 'Total',
+            errorLoading: 'Erreur chargement projets',
+            days: 'j', developedBy: 'Développé par'
+        },
+        en: {
+            projectTask: 'Project & Task', project: 'Project', task: 'Task',
+            loading: 'Loading...', chooseProjectFirst: 'Choose a project first',
+            selectProject: '-- Select project --', selectTask: '-- Select task --',
+            tabChrono: 'Timer', tabManual: 'Manual',
+            start: 'START', stop: 'STOP',
+            ready: 'Ready', recording: 'Saving…', timing: 'Timing in progress…',
+            paused: 'Paused', pausedRestored: 'Paused (restored)',
+            durationHours: 'Duration (hours)', save: 'Save',
+            dailyProgress: 'Daily progress', today: 'Today', week: 'Week',
+            noEntries: 'No entries today', loadingData: 'Loading…',
+            error: 'Error', noData: 'No data',
+            kbStartStop: 'Start/Stop',
+            selectBoth: 'Please select a project AND a task.',
+            selectBothShort: 'Select project and task.',
+            invalidDuration: 'Invalid duration.',
+            confirmStop: 'Stop and save',
+            min: 'min', totalWeek: 'Total',
+            errorLoading: 'Error loading projects',
+            days: 'd', developedBy: 'Developed by'
+        }
+    };
+
+    /** Get translated string */
+    function t(key) { return (I18N[lang] || I18N.fr)[key] || key; }
+
+    /** Apply translations to all data-i18n elements */
+    function applyI18n() {
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            el.textContent = t(el.dataset.i18n);
+        });
+    }
 
     // ─── INIT ───
     function init() {
-        restoreState();
-        loadProjects();
-        loadTodayHistory();
+        // Detect locale from server
+        google.script.run
+            .withSuccessHandler(locale => {
+                lang = locale || 'fr';
+                applyI18n();
+                restoreState();
+                loadProjects();
+                loadTodayHistory();
+            })
+            .withFailureHandler(() => {
+                applyI18n();
+                restoreState();
+                loadProjects();
+                loadTodayHistory();
+            })
+            .getUserLocale();
 
         document.getElementById('projectSelect').addEventListener('change', updateTaskDropdown);
     }
@@ -220,7 +296,7 @@ const App = (() => {
                 fullData = data || [];
                 const sel = document.getElementById('projectSelect');
                 sel.innerHTML = '';
-                addOption(sel, '', '-- Sélectionner le projet --');
+                addOption(sel, '', t('selectProject'));
                 const projects = [...new Set(data.map(r => r[0]).filter(Boolean))];
                 projects.forEach(p => addOption(sel, p, p));
 
@@ -232,7 +308,7 @@ const App = (() => {
                     if (saved.task) document.getElementById('taskSelect').value = saved.task;
                 }
             })
-            .withFailureHandler(err => showToast('Erreur chargement projets', 'error'))
+            .withFailureHandler(err => showToast(t('errorLoading'), 'error'))
             .getProjectsAndTasks();
     }
 
@@ -248,8 +324,8 @@ const App = (() => {
         const proj = document.getElementById('projectSelect').value;
         const sel = document.getElementById('taskSelect');
         sel.innerHTML = '';
-        if (!proj) { addOption(sel, '', "Choisir un projet d'abord"); return; }
-        addOption(sel, '', '-- Sélectionner la tâche --');
+        if (!proj) { addOption(sel, '', t('chooseProjectFirst')); return; }
+        addOption(sel, '', t('selectTask'));
         fullData.filter(r => r[0] === proj).forEach(r => { if (r[1]) addOption(sel, r[1], r[1]); });
     }
 
@@ -264,7 +340,7 @@ const App = (() => {
     function toggleTimer() {
         const proj = document.getElementById('projectSelect').value;
         const task = document.getElementById('taskSelect').value;
-        if (!proj || !task) { showToast('Sélectionnez un projet ET une tâche.', 'warning'); return; }
+        if (!proj || !task) { showToast(t('selectBoth'), 'warning'); return; }
         if (!running) startTimer(); else confirmStop();
     }
 
@@ -286,7 +362,7 @@ const App = (() => {
             paused = true;
             document.getElementById('display').classList.remove('running');
             document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
-            document.getElementById('status').textContent = 'En pause';
+            document.getElementById('status').textContent = t('paused');
             saveState();
         } else {
             startTime = new Date();
@@ -294,16 +370,16 @@ const App = (() => {
             timerInterval = setInterval(updateDisplay, 1000);
             document.getElementById('display').classList.add('running');
             document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">pause</span>';
-            document.getElementById('status').textContent = 'Chronométrage en cours…';
+            document.getElementById('status').textContent = t('timing');
             saveState();
         }
     }
 
     function confirmStop() {
         const elapsed = getElapsedMs();
-        if (elapsed > 300000) { // >5 min => confirm
+        if (elapsed > 300000) {
             const mins = Math.floor(elapsed / 60000);
-            if (!confirm(`Arrêter et enregistrer ${mins} min ?`)) return;
+            if (!confirm(`${t('confirmStop')} ${mins} ${t('min')} ?`)) return;
         }
         stopAndSave();
     }
@@ -316,7 +392,7 @@ const App = (() => {
             task: document.getElementById('taskSelect').value,
             duration: durationHours
         };
-        document.getElementById('status').textContent = 'Enregistrement…';
+        document.getElementById('status').textContent = t('recording');
         google.script.run
             .withSuccessHandler(msg => { showToast(msg || 'Enregistré !', msg && msg.startsWith('⚠') ? 'warning' : 'success'); resetUI(); loadTodayHistory(); })
             .withFailureHandler(err => { showToast('Erreur : ' + err.message, 'error'); resetUI(); })
@@ -342,13 +418,13 @@ const App = (() => {
         const pauseBtn = document.getElementById('pauseBtn');
         const display = document.getElementById('display');
         if (state === 'running') {
-            btn.innerHTML = '<span class="material-icons-round">stop</span> ARRÊTER';
+            btn.innerHTML = '<span class="material-icons-round">stop</span> ' + t('stop');
             btn.className = 'btn btn-danger';
             pauseBtn.classList.remove('hidden');
             display.classList.add('running');
-            document.getElementById('status').textContent = 'Chronométrage en cours…';
+            document.getElementById('status').textContent = t('timing');
         } else {
-            btn.innerHTML = '<span class="material-icons-round">play_arrow</span> LANCER';
+            btn.innerHTML = '<span class="material-icons-round">play_arrow</span> ' + t('start');
             btn.className = 'btn btn-primary';
             pauseBtn.classList.add('hidden');
             display.classList.remove('running');
@@ -359,7 +435,7 @@ const App = (() => {
         running = false; paused = false; pausedElapsed = 0;
         document.getElementById('display').textContent = '00:00:00';
         updateTimerUI('idle');
-        document.getElementById('status').textContent = 'Prêt pour Planview';
+        document.getElementById('status').textContent = t('ready');
     }
 
     // ─── MANUAL ENTRY ───
@@ -367,8 +443,8 @@ const App = (() => {
         const proj = document.getElementById('projectSelect').value;
         const task = document.getElementById('taskSelect').value;
         const hours = parseFloat(document.getElementById('manualHours').value);
-        if (!proj || !task) { showToast('Sélectionnez projet et tâche.', 'warning'); return; }
-        if (isNaN(hours) || hours <= 0) { showToast('Durée invalide.', 'error'); return; }
+        if (!proj || !task) { showToast(t('selectBothShort'), 'warning'); return; }
+        if (isNaN(hours) || hours <= 0) { showToast(t('invalidDuration'), 'error'); return; }
         google.script.run
             .withSuccessHandler(msg => { showToast(msg, msg && msg.startsWith('⚠') ? 'warning' : 'success'); loadTodayHistory(); })
             .withFailureHandler(err => showToast('Erreur : ' + err.message, 'error'))
@@ -401,7 +477,7 @@ const App = (() => {
             startTime = null;
             updateTimerUI('running');
             document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
-            document.getElementById('status').textContent = 'En pause (restauré)';
+            document.getElementById('status').textContent = t('pausedRestored');
             updateDisplay();
         } else {
             startTime = new Date(s.startTime);
@@ -426,7 +502,7 @@ const App = (() => {
 
     function renderHistory(entries) {
         const el = document.getElementById('historyList');
-        if (!entries || !entries.length) { el.innerHTML = '<div class="history-empty">Aucune saisie aujourd\'hui</div>'; return; }
+        if (!entries || !entries.length) { el.innerHTML = '<div class="history-empty">' + t('noEntries') + '</div>'; return; }
         el.innerHTML = entries.map(e => `
             <div class="history-item">
                 <div><div class="history-proj">${esc(e.project)}</div><div class="history-task">${esc(e.task)}</div></div>
@@ -446,16 +522,16 @@ const App = (() => {
 
     // ─── WEEKLY ───
     function loadWeekReport() {
-        document.getElementById('weekReport').innerHTML = '<div class="history-empty">Chargement…</div>';
+        document.getElementById('weekReport').innerHTML = '<div class="history-empty">' + t('loadingData') + '</div>';
         google.script.run
             .withSuccessHandler(renderWeek)
-            .withFailureHandler(() => { document.getElementById('weekReport').innerHTML = '<div class="history-empty">Erreur</div>'; })
-            .getWeeklyReport();
+            .withFailureHandler(() => { document.getElementById('weekReport').innerHTML = '<div class="history-empty">' + t('error') + '</div>'; })
+            .getWeeklyReport(lang);
     }
 
     function renderWeek(data) {
         const el = document.getElementById('weekReport');
-        if (!data || !data.days) { el.innerHTML = '<div class="history-empty">Pas de données</div>'; return; }
+        if (!data || !data.days) { el.innerHTML = '<div class="history-empty">' + t('noData') + '</div>'; return; }
         let html = '';
         let totalBase = 0;
         Object.entries(data.days).forEach(([day, info]) => {
@@ -470,7 +546,7 @@ const App = (() => {
             html += '</div>';
         });
         const avgBase = totalBase > 0 ? totalBase : 40;
-        html += `<div class="week-summary">Total : ${data.weekTotal.toFixed(2)}h / ${totalBase}h (${(data.weekTotal / avgBase * 5).toFixed(2)} j)</div>`;
+        html += `<div class="week-summary">${t('totalWeek')} : ${data.weekTotal.toFixed(2)}h / ${totalBase}h (${(data.weekTotal / avgBase * 5).toFixed(2)} ${t('days')})</div>`;
         el.innerHTML = html;
     }
 

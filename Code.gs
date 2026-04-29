@@ -134,7 +134,7 @@ const ensureSheets_ = () => {
 
 /**
  * ============================================================
- *  MENU & SIDEBAR
+ *  MENU, SIDEBAR & WEB APP
  * ============================================================
  */
 
@@ -156,10 +156,42 @@ const onOpen = () => {
  */
 const showSidebar = () => {
   ensureSheets_();
+  const locale = getUserLocale();
+  const title = locale === 'fr' ? 'Traqueur de temps' : 'Time Tracker';
   const html = HtmlService.createHtmlOutputFromFile('index')
-    .setTitle('Mon suivi Planview')
+    .setTitle(title)
     .setWidth(320);
   SpreadsheetApp.getUi().showSidebar(html);
+};
+
+/**
+ * Point d'entrée Web App (accès mobile via URL).
+ * Déployer via : Extensions > Apps Script > Déployer > Application Web
+ * @return {HtmlOutput}
+ */
+const doGet = () => {
+  ensureSheets_();
+  const locale = getUserLocale();
+  const title = locale === 'fr' ? 'Traqueur de temps' : 'Time Tracker';
+  return HtmlService.createHtmlOutputFromFile('index')
+    .setTitle(title)
+    .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
+    .addMetaTag('viewport', 'width=device-width, initial-scale=1');
+};
+
+/**
+ * Retourne la locale de l'utilisateur ('fr' ou 'en').
+ * Utilisé par le frontend pour l'internationalisation.
+ * @return {string} 'fr' ou 'en'
+ */
+const getUserLocale = () => {
+  try {
+    const locale = Session.getActiveUser().getEmail() ? 
+      SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale() : 'fr_FR';
+    return locale.startsWith('fr') ? 'fr' : 'en';
+  } catch (e) {
+    return 'fr';
+  }
 };
 
 
@@ -461,9 +493,10 @@ const sendDailyReport = (reason = 'Point automatique') => {
 
 /**
  * Génère un rapport hebdomadaire (lundi à dimanche en cours).
+ * @param {string} [lang='fr'] - Locale 'fr' ou 'en' pour les noms de jours
  * @return {{ days: Object, weekTotal: number }}
  */
-const getWeeklyReport = () => {
+const getWeeklyReport = (lang) => {
   ensureSheets_();
   const ss = SpreadsheetApp.getActiveSpreadsheet();
   const sheet = ss.getSheetByName('Journal');
@@ -476,6 +509,24 @@ const getWeeklyReport = () => {
   const monday = new Date(now); monday.setDate(now.getDate() + mondayOff); monday.setHours(0,0,0,0);
   const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
 
+  // Noms de jours localisés (lun→dim) — Utilities.formatDate('EEE') renvoie l'anglais par défaut
+  const DAY_NAMES = {
+    fr: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
+    en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+  };
+  const dayNames = DAY_NAMES[lang] || DAY_NAMES.fr;
+
+  /**
+   * Construit la clé lisible d'un jour : "Lun 28/04"
+   * @param {Date} d
+   * @return {string}
+   */
+  const buildKey = (d) => {
+    const dayName = dayNames[d.getDay()];
+    const dateStr = Utilities.formatDate(d, tz, 'dd/MM');
+    return `${dayName} ${dateStr}`;
+  };
+
   const data = sheet.getDataRange().getValues();
   const days = {};
   let weekTotal = 0;
@@ -483,14 +534,13 @@ const getWeeklyReport = () => {
   for (let i = 0; i < 7; i++) {
     const d = new Date(monday); d.setDate(monday.getDate() + i);
     const bh = getBaseHoursForDate_(d);
-    const key = Utilities.formatDate(d, tz, 'EEE dd/MM');
-    days[key] = { entries: [], total: 0, baseHours: bh };
+    days[buildKey(d)] = { entries: [], total: 0, baseHours: bh };
   }
 
   data.slice(1).forEach(row => {
     const cd = row[0];
     if (!(cd instanceof Date) || cd < monday || cd > sunday) return;
-    const dk = Utilities.formatDate(cd, tz, 'EEE dd/MM');
+    const dk = buildKey(cd);
     const h = parseFloat(row[3]) || 0;
     if (days[dk]) {
       days[dk].entries.push({ project: row[1], task: row[2], hours: h });
