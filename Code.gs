@@ -49,7 +49,7 @@
     const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
     for (const [jour, heures] of data) {
         if (String(jour).trim().toLowerCase() === dayName.toLowerCase()) {
-        const h = parseFloat(heures);
+        const h = parseFloat(String(heures).replace(',', '.'));
         return (isNaN(h) || h <= 0) ? DEFAULT_BASE_HOURS : h;
         }
     }
@@ -78,7 +78,7 @@
     const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
     for (const [jour, heures] of data) {
         if (String(jour).trim().toLowerCase() === dayName.toLowerCase()) {
-        const h = parseFloat(heures);
+        const h = parseFloat(String(heures).replace(',', '.'));
         return (isNaN(h) || h <= 0) ? DEFAULT_BASE_HOURS : h;
         }
     }
@@ -312,7 +312,7 @@
 
     data.slice(1).forEach(row => {
         if (formatDateCell_(row[0]) === todayStr) {
-        const hours = parseFloat(row[3]) || 0;
+        const hours = parseFloat(String(row[3]).replace(',', '.')) || 0;
         entries.push({ project: row[1], task: row[2], hours });
         totalHours += hours;
         }
@@ -337,7 +337,7 @@
     const data = existingData || SpreadsheetApp.getActiveSpreadsheet()
         .getSheetByName('Journal').getDataRange().getValues();
     return data.slice(1).reduce((total, row) => {
-        return (formatDateCell_(row[0]) === dateStr) ? total + (parseFloat(row[3]) || 0) : total;
+        return (formatDateCell_(row[0]) === dateStr) ? total + (parseFloat(String(row[3]).replace(',', '.')) || 0) : total;
     }, 0);
     };
 
@@ -378,7 +378,7 @@
         const sheet = ss.getSheetByName('Journal');
         const baseHours = getBaseHoursToday_();
 
-        const dureeDemandee = parseFloat(entry.duration);
+        const dureeDemandee = parseFloat(String(entry.duration).replace(',', '.'));
         if (isNaN(dureeDemandee) || dureeDemandee <= 0) return '❌ Durée invalide.';
 
         const todayStr = getTodayString_();
@@ -406,7 +406,7 @@
         });
 
         if (foundRowIndex !== -1) {
-        const currentHours = parseFloat(sheet.getRange(foundRowIndex, 4).getValue()) || 0;
+        const currentHours = parseFloat(String(sheet.getRange(foundRowIndex, 4).getValue()).replace(',', '.')) || 0;
         const newTotal = currentHours + dureeReelle;
         sheet.getRange(foundRowIndex, 4).setValue(newTotal);
         sheet.getRange(foundRowIndex, 5).setValue(newTotal / baseHours);
@@ -440,7 +440,7 @@
      */
     const saveManualEntry = (entry) => {
     if (!entry.project || !entry.task) return '❌ Projet et tâche requis.';
-    const hours = parseFloat(entry.hours);
+    const hours = parseFloat(String(entry.hours).replace(',', '.'));
     const baseHours = getBaseHoursToday_();
     if (isNaN(hours) || hours <= 0 || hours > baseHours) {
         return `❌ Heures invalides (entre 0.01 et ${baseHours}).`;
@@ -611,8 +611,8 @@
         const [date, project, task, hours] = row;
         if (formatDateCell_(date) === todayStr) {
         const key = `${project} - ${task}`;
-        acc.summary[key] = (acc.summary[key] || 0) + (parseFloat(hours) || 0);
-        acc.totalHours += (parseFloat(hours) || 0);
+        acc.summary[key] = (acc.summary[key] || 0) + (parseFloat(String(hours).replace(',', '.')) || 0);
+        acc.totalHours += (parseFloat(String(hours).replace(',', '.')) || 0);
         }
         return acc;
     }, { summary: {}, totalHours: 0 });
@@ -725,7 +725,7 @@
         const cd = row[0];
         if (!(cd instanceof Date) || cd < monday || cd > sunday) return;
         const dk = buildKey(cd);
-        const h = parseFloat(row[3]) || 0;
+        const h = parseFloat(String(row[3]).replace(',', '.')) || 0;
         if (days[dk]) {
         days[dk].entries.push({ project: row[1], task: row[2], hours: h });
         days[dk].total += h;

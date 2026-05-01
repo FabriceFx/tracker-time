@@ -140,7 +140,7 @@
         <!-- Tab Saisie manuelle -->
         <div id="tab-manual" class="tab-content">
             <label data-i18n="durationHours"></label>
-            <input type="number" id="manualHours" min="0.01" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5">
+            <input type="text" inputmode="decimal" id="manualHours" value="0.5" placeholder="Ex: 1.5 ou 1,5">
             <button class="btn btn-primary" onclick="App.saveManual()">
                 <span class="material-icons-round">save</span> <span data-i18n="save"></span>
             </button>
@@ -433,7 +433,8 @@ const App = (() => {
     function saveManual() {
         const proj = document.getElementById('projectSelect').value;
         const task = document.getElementById('taskSelect').value;
-        const hours = parseFloat(document.getElementById('manualHours').value);
+        const rawValue = document.getElementById('manualHours').value;
+        const hours = parseFloat(rawValue.replace(',', '.'));
         if (!proj || !task) { showToast(t('selectBothShort'), 'warning'); return; }
         if (isNaN(hours) || hours <= 0) { showToast(t('invalidDuration'), 'error'); return; }
         google.script.run
