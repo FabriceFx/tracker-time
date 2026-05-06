@@ -447,12 +447,12 @@
 
         <label for="projectSelect" data-i18n="projet"></label>
         <select id="projectSelect" disabled>
-            <option valeur="" data-i18n="loading"></option>
+            <option value="" data-i18n="loading"></option>
         </select>
 
         <label for="taskSelect" data-i18n="tache"></label>
         <select id="taskSelect" disabled>
-            <option valeur="" data-i18n="chooseProjectFirst"></option>
+            <option value="" data-i18n="chooseProjectFirst"></option>
         </select>
     </div>
 
@@ -486,7 +486,7 @@
 
         <div id="tab-manual" class="tab-content" data-tab-group-content="mode">
             <label for="manualHours" data-i18n="heuresDuree"></label>
-            <input type="number" id="manualHours" min="0.01" max="8" step="0.25" valeur="0.5" placeholder="Ex: 1.5"
+            <input type="number" id="manualHours" min="0.01" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5"
                 disabled>
 
             <button id="manualSaveBtn" class="btn btn-primary" onclick="App.enregistrerManuellement()" disabled>
@@ -709,7 +709,7 @@
                 initialise = valeur;
                 byId('loadingLine').classList.toggle('hidden', valeur);
                 byId('projectSelect').disabled = !valeur;
-                byId('taskSelect').disabled = !valeur || !byId('projectSelect').valeur;
+                byId('taskSelect').disabled = !valeur || !byId('projectSelect').value;
                 byId('manualHours').disabled = !valeur;
                 setSavingState(false);
 
@@ -728,25 +728,25 @@
 
                 const saved = chargerEtat();
                 if (saved && saved.projet) {
-                    projectSelect.valeur = saved.projet;
+                    projectSelect.value = saved.projet;
                 }
 
                 updateTaskDropdown();
 
                 if (saved && saved.tache) {
-                    byId('taskSelect').valeur = saved.tache;
+                    byId('taskSelect').value = saved.tache;
                 }
             }
 
             function addOption(select, valeur, text) {
                 const option = document.createElement('option');
-                option.valeur = valeur;
+                option.value = valeur;
                 option.textContent = text;
                 select.appendChild(option);
             }
 
             function updateTaskDropdown() {
-                const projet = byId('projectSelect').valeur;
+                const projet = byId('projectSelect').value;
                 const taskSelect = byId('taskSelect');
 
                 taskSelect.innerHTML = '';
@@ -789,8 +789,8 @@
             function basculerChrono() {
                 if (!initialise || sauvegardeEnCours) return;
 
-                const projet = byId('projectSelect').valeur;
-                const tache = byId('taskSelect').valeur;
+                const projet = byId('projectSelect').value;
+                const tache = byId('taskSelect').value;
 
                 if (!projet || !tache) {
                     afficherNotification(t('selectBoth'), 'warning');
@@ -859,8 +859,8 @@
                 updateDisplay();
 
                 const saisie = {
-                    projet: byId('projectSelect').valeur,
-                    tache: byId('taskSelect').valeur,
+                    projet: byId('projectSelect').value,
+                    tache: byId('taskSelect').value,
                     duree: durationMs / 3600000
                 };
 
@@ -949,15 +949,15 @@
                 byId('manualSaveBtn').disabled = shouldDisable;
                 byId('manualHours').disabled = shouldDisable;
                 byId('projectSelect').disabled = shouldDisable;
-                byId('taskSelect').disabled = shouldDisable || !byId('projectSelect').valeur;
+                byId('taskSelect').disabled = shouldDisable || !byId('projectSelect').value;
             }
 
             function enregistrerManuellement() {
                 if (!initialise || sauvegardeEnCours) return;
 
-                const projet = byId('projectSelect').valeur;
-                const tache = byId('taskSelect').valeur;
-                const heures = parseFloat(byId('manualHours').valeur);
+                const projet = byId('projectSelect').value;
+                const tache = byId('taskSelect').value;
+                const heures = parseFloat(byId('manualHours').value);
 
                 if (!projet || !tache) {
                     afficherNotification(t('selectBothShort'), 'warning');
@@ -975,7 +975,7 @@
                 google.script.run
                     .withSuccessHandler(message => {
                         afficherNotification(message || t('saved'), getToastTypeFromMessage(message));
-                        byId('manualHours').valeur = '0.5';
+                        byId('manualHours').value = '0.5';
                         byId('status').textContent = t('ready');
                         setSavingState(false);
                         chargerHistoriqueJour();
@@ -994,8 +994,8 @@
                     estEnCours,
                     estEnPause,
                     tempsEcouleEnPause,
-                    projet: byId('projectSelect').valeur,
-                    tache: byId('taskSelect').valeur
+                    projet: byId('projectSelect').value,
+                    tache: byId('taskSelect').value
                 };
 
                 try {
