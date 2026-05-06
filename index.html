@@ -1,577 +1,1208 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <base target="_top">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Round" rel="stylesheet">
+
     <style>
         :root {
-            --primary: #6750A4; --on-primary: #fff; --primary-container: #EADDFF;
-            --surface: #FFFBFE; --surface-variant: #F5F0FA; --outline: #79747E;
-            --on-surface: #1C1B1F; --error: #B3261E; --success: #1B873B;
-            --warning: #E8A317; --radius: 16px;
+            --primary: #6750A4;
+            --on-primary: #fff;
+            --on-primary-container: #21005D;
+            --primary-container: #EADDFF;
+            --surface: #FFFBFE;
+            --surface-variant: #F5F0FA;
+            --outline: #79747E;
+            --on-surface: #1C1B1F;
+            --error: #B3261E;
+            --success: #1B873B;
+            --warning: #E8A317;
+            --radius: 16px;
         }
+
         @media (prefers-color-scheme: dark) {
             :root {
-                --primary: #D0BCFF; --on-primary: #381E72; --primary-container: #4F378B;
-                --surface: #1C1B1F; --surface-variant: #2B2930; --outline: #938F99;
-                --on-surface: #E6E1E5; --error: #F2B8B5; --success: #7DD99A; --warning: #F5D480;
+                --primary: #D0BCFF;
+                --on-primary: #381E72;
+                --on-primary-container: #EADDFF;
+                --primary-container: #4F378B;
+                --surface: #1C1B1F;
+                --surface-variant: #2B2930;
+                --outline: #938F99;
+                --on-surface: #E6E1E5;
+                --error: #F2B8B5;
+                --success: #7DD99A;
+                --warning: #F5D480;
             }
-            select, input { background: var(--surface-variant) !important; color: var(--on-surface) !important; border-color: var(--outline) !important; }
+
+            select,
+            input {
+                background: var(--surface-variant) !important;
+                color: var(--on-surface) !important;
+                border-color: var(--outline) !important;
+            }
         }
-        * { box-sizing: border-box; margin: 0; }
-        body { font-family: 'Inter', sans-serif; background: var(--surface); padding: 12px; color: var(--on-surface); }
-        .card { background: var(--surface-variant); border-radius: var(--radius); padding: 16px; margin-bottom: 12px; border: 1px solid rgba(121,116,126,0.15); transition: box-shadow 0.2s; }
-        .card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
-        .section-title { font-size: 11px; font-weight: 600; color: var(--primary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
-        label { font-size: 11px; color: var(--outline); margin-left: 2px; display: block; margin-bottom: 3px; }
-        select, input[type="number"] {
-            width: 100%; padding: 10px 12px; margin-bottom: 12px; border-radius: 10px;
-            border: 1px solid var(--outline); background: #fff; font-size: 13px; font-family: inherit;
-            transition: border-color 0.2s; outline: none;
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
         }
-        select:focus, input:focus { border-color: var(--primary); box-shadow: 0 0 0 2px rgba(103,80,164,0.15); }
 
-        /* === GAUGE === */
-        .gauge-wrap { text-align: center; margin: 8px 0; position: relative; }
-        .gauge-wrap svg { width: 140px; height: 140px; }
-        .gauge-track { fill: none; stroke: rgba(103,80,164,0.12); stroke-width: 10; }
-        .gauge-fill { fill: none; stroke: var(--primary); stroke-width: 10; stroke-linecap: round;
-            transition: stroke-dashoffset 0.6s ease, stroke 0.3s; }
-        .gauge-text { position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%); }
-        .gauge-hours { font-size: 28px; font-weight: 300; font-variant-numeric: tabular-nums; }
-        .gauge-label { font-size: 10px; color: var(--outline); }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--surface);
+            padding: 12px;
+            color: var(--on-surface);
+        }
 
-        /* === TIMER === */
-        .timer-display { font-size: 2.6rem; text-align: center; font-weight: 300; margin: 4px 0;
-            font-variant-numeric: tabular-nums; letter-spacing: 2px; }
-        .timer-display.running { animation: pulse 1.5s ease-in-out infinite; }
-        @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .card {
+            background: var(--surface-variant);
+            border-radius: var(--radius);
+            padding: 16px;
+            margin-bottom: 12px;
+            border: 1px solid rgba(121, 116, 126, 0.15);
+            transition: box-shadow 0.2s;
+        }
 
-        /* === BUTTONS === */
-        .btn-row { display: flex; gap: 8px; margin-top: 8px; }
-        .btn { flex: 1; height: 44px; border-radius: 22px; border: none; font-weight: 500; cursor: pointer;
-            display: flex; align-items: center; justify-content: center; gap: 6px; font-family: inherit;
-            font-size: 13px; transition: all 0.2s; position: relative; overflow: hidden; }
-        .btn .material-icons-round { font-size: 20px; }
-        .btn-primary { background: var(--primary); color: var(--on-primary); }
-        .btn-primary:hover { box-shadow: 0 4px 12px rgba(103,80,164,0.35); transform: translateY(-1px); }
-        .btn-danger { background: var(--error); color: #fff; }
-        .btn-outline { background: transparent; color: var(--primary); border: 1.5px solid var(--primary); }
-        .btn-outline:hover { background: var(--primary-container); }
-        .btn-secondary { background: var(--primary-container); color: var(--on-primary-container, #21005D); }
-        .btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none !important; box-shadow: none !important; }
-        .btn-sm { height: 36px; border-radius: 18px; font-size: 12px; }
+        .card:hover {
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+        }
 
-        /* === TOAST === */
-        .toast { position: fixed; bottom: 16px; left: 12px; right: 12px; padding: 12px 16px; border-radius: 12px;
-            font-size: 13px; font-weight: 500; z-index: 100; transform: translateY(100px); opacity: 0;
-            transition: all 0.35s cubic-bezier(0.4,0,0.2,1); display: flex; align-items: center; gap: 8px; }
-        .toast.show { transform: translateY(0); opacity: 1; }
-        .toast-success { background: var(--success); color: #fff; }
-        .toast-error { background: var(--error); color: #fff; }
-        .toast-warning { background: var(--warning); color: #1C1B1F; }
-        .toast .material-icons-round { font-size: 18px; }
+        .section-title {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
 
-        /* === HISTORY === */
-        .history-item { display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 0; border-bottom: 1px solid rgba(121,116,126,0.1); font-size: 12px; }
-        .history-item:last-child { border-bottom: none; }
-        .history-proj { font-weight: 500; color: var(--on-surface); }
-        .history-task { color: var(--outline); font-size: 11px; }
-        .history-hours { font-weight: 600; color: var(--primary); white-space: nowrap; }
-        .history-empty { text-align: center; color: var(--outline); font-size: 12px; padding: 16px 0; }
+        label {
+            font-size: 11px;
+            color: var(--outline);
+            margin-left: 2px;
+            display: block;
+            margin-bottom: 3px;
+        }
 
-        /* === TABS === */
-        .tabs { display: flex; border-bottom: 2px solid rgba(121,116,126,0.12); margin-bottom: 12px; }
-        .tab { flex: 1; text-align: center; padding: 8px 4px; font-size: 12px; font-weight: 500;
-            color: var(--outline); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;
-            transition: all 0.2s; }
-        .tab.active { color: var(--primary); border-bottom-color: var(--primary); }
-        .tab-content { display: none; } .tab-content.active { display: block; }
+        select,
+        input[type="number"] {
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 12px;
+            border-radius: 10px;
+            border: 1px solid var(--outline);
+            background: #fff;
+            font-size: 13px;
+            font-family: inherit;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            outline: none;
+        }
 
-        /* === WEEKLY === */
-        .week-day { margin-bottom: 8px; }
-        .week-day-header { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600;
-            color: var(--on-surface); margin-bottom: 4px; padding: 4px 0; border-bottom: 1px solid rgba(121,116,126,0.1); }
-        .week-day-total { color: var(--primary); }
-        .week-entry { font-size: 11px; color: var(--outline); padding: 2px 0 2px 8px; }
-        .week-summary { text-align: center; padding: 12px; font-size: 14px; font-weight: 500; color: var(--primary); }
+        select:focus,
+        input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(103, 80, 164, 0.15);
+        }
 
-        .status-text { font-size: 11px; text-align: center; color: var(--outline); margin-top: 8px; }
-        .hidden { display: none; }
+        .gauge-wrap {
+            text-align: center;
+            margin: 8px 0;
+            position: relative;
+        }
+
+        .gauge-wrap svg {
+            width: 140px;
+            height: 140px;
+        }
+
+        .gauge-track {
+            fill: none;
+            stroke: rgba(103, 80, 164, 0.12);
+            stroke-width: 10;
+        }
+
+        .gauge-fill {
+            fill: none;
+            stroke: var(--primary);
+            stroke-width: 10;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.6s ease, stroke 0.3s;
+        }
+
+        .gauge-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .gauge-heures {
+            font-size: 28px;
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .gauge-label {
+            font-size: 10px;
+            color: var(--outline);
+        }
+
+        .timer-display {
+            font-size: 2.6rem;
+            text-align: center;
+            font-weight: 300;
+            margin: 4px 0;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 2px;
+        }
+
+        .timer-display.estEnCours {
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+        }
+
+        .btn-ligne {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+        }
+
+        .btn {
+            flex: 1;
+            height: 44px;
+            border-radius: 22px;
+            border: none;
+            font-weight: 500;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            font-family: inherit;
+            font-size: 13px;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn .material-icons-round {
+            font-size: 20px;
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: var(--on-primary);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 4px 12px rgba(103, 80, 164, 0.35);
+            transform: translateY(-1px);
+        }
+
+        .btn-danger {
+            background: var(--error);
+            color: #fff;
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 1.5px solid var(--primary);
+        }
+
+        .btn-outline:hover {
+            background: var(--primary-container);
+        }
+
+        .btn-secondary {
+            background: var(--primary-container);
+            color: var(--on-primary-container);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-sm {
+            height: 36px;
+            border-radius: 18px;
+            font-size: 12px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 16px;
+            left: 12px;
+            right: 12px;
+            padding: 12px 16px;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 100;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        .toast-success {
+            background: var(--success);
+            color: #fff;
+        }
+
+        .toast-error {
+            background: var(--error);
+            color: #fff;
+        }
+
+        .toast-warning {
+            background: var(--warning);
+            color: #1C1B1F;
+        }
+
+        .toast .material-icons-round {
+            font-size: 18px;
+        }
+
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(121, 116, 126, 0.1);
+            font-size: 12px;
+        }
+
+        .history-item:last-child {
+            border-bottom: none;
+        }
+
+        .history-proj {
+            font-weight: 500;
+            color: var(--on-surface);
+            word-break: break-word;
+        }
+
+        .history-tache {
+            color: var(--outline);
+            font-size: 11px;
+            word-break: break-word;
+        }
+
+        .history-heures {
+            font-weight: 600;
+            color: var(--primary);
+            white-space: nowrap;
+        }
+
+        .history-empty {
+            text-align: center;
+            color: var(--outline);
+            font-size: 12px;
+            padding: 16px 0;
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid rgba(121, 116, 126, 0.12);
+            margin-bottom: 12px;
+        }
+
+        .tab {
+            flex: 1;
+            text-align: center;
+            padding: 8px 4px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--outline);
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .tab.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .week-day {
+            margin-bottom: 8px;
+        }
+
+        .week-day-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--on-surface);
+            margin-bottom: 4px;
+            padding: 4px 0;
+            border-bottom: 1px solid rgba(121, 116, 126, 0.1);
+        }
+
+        .week-day-total {
+            color: var(--primary);
+            white-space: nowrap;
+        }
+
+        .week-saisie {
+            font-size: 11px;
+            color: var(--outline);
+            padding: 2px 0 2px 8px;
+            word-break: break-word;
+        }
+
+        .week-resume {
+            text-align: center;
+            padding: 12px;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--primary);
+        }
+
+        .status-text {
+            font-size: 11px;
+            text-align: center;
+            color: var(--outline);
+            margin-top: 8px;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        .loading-line {
+            height: 4px;
+            background: linear-gradient(90deg, transparent, var(--primary), transparent);
+            background-size: 200% 100%;
+            animation: shimmer 1s infinite;
+            border-radius: 99px;
+            margin-bottom: 12px;
+            opacity: 0.75;
+        }
+
+        @keyframes shimmer {
+            from {
+                background-position: 200% 0;
+            }
+
+            to {
+                background-position: -200% 0;
+            }
+        }
+
+        kbd {
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--primary-container);
+            font-size: 10px;
+        }
     </style>
 </head>
+
 <body>
-    <!-- SÉLECTION PROJET / TÂCHE -->
+    <div id="loadingLine" class="loading-line"></div>
+
     <div class="card">
         <div class="section-title" data-i18n="projectTask"></div>
-        <label data-i18n="project"></label>
-        <select id="projectSelect"><option value="" data-i18n="loading"></option></select>
-        <label data-i18n="task"></label>
-        <select id="taskSelect"><option value="" data-i18n="chooseProjectFirst"></option></select>
+
+        <label for="projectSelect" data-i18n="projet"></label>
+        <select id="projectSelect" disabled>
+            <option valeur="" data-i18n="loading"></option>
+        </select>
+
+        <label for="taskSelect" data-i18n="tache"></label>
+        <select id="taskSelect" disabled>
+            <option valeur="" data-i18n="chooseProjectFirst"></option>
+        </select>
     </div>
 
-    <!-- TABS : Chrono / Saisie manuelle -->
     <div class="card">
         <div class="tabs">
-            <div class="tab active" data-tab="chrono" onclick="App.switchTab('chrono')">
-                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">timer</span> <span data-i18n="tabChrono"></span>
+            <div class="tab active" data-tab-group="mode" data-tab="chrono" onclick="App.changerOnglet('chrono')">
+                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">timer</span>
+                <span data-i18n="tabChrono"></span>
             </div>
-            <div class="tab" data-tab="manual" onclick="App.switchTab('manual')">
-                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">edit</span> <span data-i18n="tabManual"></span>
+            <div class="tab" data-tab-group="mode" data-tab="manual" onclick="App.changerOnglet('manual')">
+                <span class="material-icons-round" style="font-size:16px;vertical-align:middle">edit</span>
+                <span data-i18n="tabManual"></span>
             </div>
         </div>
 
-        <!-- Tab Chrono -->
-        <div id="tab-chrono" class="tab-content active">
+        <div id="tab-chrono" class="tab-content active" data-tab-group-content="mode">
             <div class="timer-display" id="display">00:00:00</div>
-            <div class="btn-row">
-                <button id="mainBtn" class="btn btn-primary" onclick="App.toggleTimer()">
-                    <span class="material-icons-round">play_arrow</span> <span data-i18n="start"></span>
+
+            <div class="btn-ligne">
+                <button id="mainBtn" class="btn btn-primary" onclick="App.basculerChrono()" disabled>
+                    <span class="material-icons-round">play_arrow</span>
+                    <span data-i18n="start"></span>
                 </button>
-                <button id="pauseBtn" class="btn btn-outline hidden" onclick="App.pauseTimer()">
+                <button id="pauseBtn" class="btn btn-outline hidden" onclick="App.mettreEnPauseChrono()" disabled>
                     <span class="material-icons-round">pause</span>
                 </button>
             </div>
-            <p class="status-text" id="status" data-i18n="ready"></p>
+
+            <p class="status-text" id="status" data-i18n="loadingData"></p>
         </div>
 
-        <!-- Tab Saisie manuelle -->
-        <div id="tab-manual" class="tab-content">
-            <label data-i18n="durationHours"></label>
-            <input type="text" inputmode="decimal" id="manualHours" value="0.5" placeholder="Ex: 1.5 ou 1,5">
-            <button class="btn btn-primary" onclick="App.saveManual()">
-                <span class="material-icons-round">save</span> <span data-i18n="save"></span>
+        <div id="tab-manual" class="tab-content" data-tab-group-content="mode">
+            <label for="manualHours" data-i18n="heuresDuree"></label>
+            <input type="number" id="manualHours" min="0.01" max="8" step="0.25" valeur="0.5" placeholder="Ex: 1.5"
+                disabled>
+
+            <button id="manualSaveBtn" class="btn btn-primary" onclick="App.enregistrerManuellement()" disabled>
+                <span class="material-icons-round">save</span>
+                <span data-i18n="save"></span>
             </button>
         </div>
     </div>
 
-    <!-- JAUGE CIRCULAIRE -->
     <div class="card">
         <div class="section-title" data-i18n="dailyProgress"></div>
+
         <div class="gauge-wrap">
-            <svg viewBox="0 0 100 100">
-                <circle class="gauge-track" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"/>
+            <svg viewBox="0 0 100 100" aria-hidden="true">
+                <circle class="gauge-track" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"></circle>
                 <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"
-                    stroke-dasharray="251.33" stroke-dashoffset="251.33"/>
+                    stroke-dasharray="251.33" stroke-dashoffset="251.33"></circle>
             </svg>
             <div class="gauge-text">
-                <div class="gauge-hours" id="gaugeHours">0.00h</div>
+                <div class="gauge-heures" id="gaugeHours">0.00h</div>
                 <div class="gauge-label" id="gaugeLabel">/ 8h</div>
             </div>
         </div>
     </div>
 
-    <!-- HISTORIQUE / HEBDO -->
     <div class="card">
         <div class="tabs">
-            <div class="tab active" data-tab="today" onclick="App.switchTab('today')" data-i18n="today"></div>
-            <div class="tab" data-tab="week" onclick="App.switchTab('week')" data-i18n="week"></div>
+            <div class="tab active" data-tab-group="period" data-tab="aujourdhui" onclick="App.changerOnglet('aujourdhui')"
+                data-i18n="aujourdhui"></div>
+            <div class="tab" data-tab-group="period" data-tab="week" onclick="App.changerOnglet('week')" data-i18n="week">
+            </div>
         </div>
-        <div id="tab-today" class="tab-content active">
-            <div id="historyList"><div class="history-empty">Aucune saisie aujourd'hui</div></div>
+
+        <div id="tab-aujourdhui" class="tab-content active" data-tab-group-content="period">
+            <div id="historyList">
+                <div class="history-empty" data-i18n="loadingData"></div>
+            </div>
         </div>
-        <div id="tab-week" class="tab-content">
-            <div id="weekReport"><div class="history-empty">Chargement...</div></div>
+
+        <div id="tab-week" class="tab-content" data-tab-group-content="period">
+            <div id="weekReport">
+                <div class="history-empty" data-i18n="loadingData"></div>
+            </div>
         </div>
     </div>
 
-    <!-- TOAST -->
-    <div class="toast" id="toast"><span class="material-icons-round" id="toastIcon">check_circle</span><span id="toastMsg"></span></div>
+    <div id="toast" class="toast">
+        <span class="material-icons-round" id="toastIcon">check_circle</span>
+        <span id="toastMsg"></span>
+    </div>
 
-    <!-- RACCOURCIS -->
     <div class="card" style="padding:10px 16px;">
         <div style="font-size:10px;color:var(--outline);text-align:center;">
-            <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">Space</kbd> <span data-i18n="kbStartStop"></span> &nbsp;
-            <kbd style="padding:2px 6px;border-radius:4px;background:var(--primary-container);font-size:10px">P</kbd> Pause
+            <kbd>Space</kbd> <span data-i18n="kbStartStop"></span>
+            &nbsp;
+            <kbd>P</kbd> <span data-i18n="pause"></span>
         </div>
     </div>
 
-    <!-- CRÉDIT DÉVELOPPEUR -->
     <div style="text-align:center;padding:8px 0 4px;font-size:9px;color:var(--outline);opacity:0.7;">
         <span class="material-icons-round" style="font-size:11px;vertical-align:middle">code</span>
         <span data-i18n="developedBy"></span> <strong>Fabrice Faucheux</strong>
     </div>
 
-<script>
-/**
- * Application principale — encapsulée dans un objet App.
- * Gère le chronomètre, la persistence localStorage, les toasts et l'historique.
- */
-const App = (() => {
-    /** @type {Date|null} */   let startTime = null;
-    /** @type {number|null} */ let timerInterval = null;
-    /** @type {boolean} */     let running = false;
-    /** @type {boolean} */     let paused = false;
-    /** @type {number} */      let pausedElapsed = 0;
-    /** @type {Array} */       let fullData = [];
-    /** @type {number} */      let baseH = 8;
-    /** @type {string} */      let lang = 'fr';
-    const STORAGE_KEY = 'timetracker_state';
-    const CIRCUMFERENCE = 2 * Math.PI * 40;
+    <script>
+        const App = (() => {
+            let heureDebut = null;
+            let intervalleChrono = null;
+            let estEnCours = false;
+            let estEnPause = false;
+            let tempsEcouleEnPause = 0;
+            let sauvegardeEnCours = false;
+            let initialise = false;
+            let donneesCompletes = [];
+            let baseH = 8;
+            let lang = 'fr';
 
-    // ─── I18N ───
-    const I18N = {
-        fr: {
-            projectTask: 'Projet & Tâche', project: 'Projet', task: 'Tâche',
-            loading: 'Chargement...', chooseProjectFirst: "Choisir un projet d'abord",
-            selectProject: '-- Sélectionner le projet --', selectTask: '-- Sélectionner la tâche --',
-            tabChrono: 'Chrono', tabManual: 'Saisie',
-            start: 'LANCER', stop: 'ARRÊTER',
-            ready: 'Prêt', recording: 'Enregistrement…', timing: 'Chronométrage en cours…',
-            paused: 'En pause', pausedRestored: 'En pause (restauré)',
-            durationHours: 'Durée (heures)', save: 'Enregistrer',
-            dailyProgress: 'Progression du jour', today: "Aujourd'hui", week: 'Semaine',
-            noEntries: "Aucune saisie aujourd'hui", loadingData: 'Chargement…',
-            error: 'Erreur', noData: 'Pas de données',
-            kbStartStop: 'Lancer/Arrêter',
-            selectBoth: 'Sélectionnez un projet ET une tâche.',
-            selectBothShort: 'Sélectionnez projet et tâche.',
-            invalidDuration: 'Durée invalide.',
-            confirmStop: 'Arrêter et enregistrer',
-            min: 'min', totalWeek: 'Total',
-            errorLoading: 'Erreur chargement projets',
-            days: 'j', developedBy: 'Développé par'
-        },
-        en: {
-            projectTask: 'Project & Task', project: 'Project', task: 'Task',
-            loading: 'Loading...', chooseProjectFirst: 'Choose a project first',
-            selectProject: '-- Select project --', selectTask: '-- Select task --',
-            tabChrono: 'Timer', tabManual: 'Manual',
-            start: 'START', stop: 'STOP',
-            ready: 'Ready', recording: 'Saving…', timing: 'Timing in progress…',
-            paused: 'Paused', pausedRestored: 'Paused (restored)',
-            durationHours: 'Duration (hours)', save: 'Save',
-            dailyProgress: 'Daily progress', today: 'Today', week: 'Week',
-            noEntries: 'No entries today', loadingData: 'Loading…',
-            error: 'Error', noData: 'No data',
-            kbStartStop: 'Start/Stop',
-            selectBoth: 'Please select a project AND a task.',
-            selectBothShort: 'Select project and task.',
-            invalidDuration: 'Invalid duration.',
-            confirmStop: 'Stop and save',
-            min: 'min', totalWeek: 'Total',
-            errorLoading: 'Error loading projects',
-            days: 'd', developedBy: 'Developed by'
-        }
-    };
+            const STORAGE_KEY = 'timetracker_state';
+            const CIRCUMFERENCE = 2 * Math.PI * 40;
 
-    /** Get translated string */
-    function t(key) { return (I18N[lang] || I18N.fr)[key] || key; }
+            const TAB_GROUPS = {
+                mode: ['chrono', 'manual'],
+                period: ['aujourdhui', 'week']
+            };
 
-    /** Apply translations to all data-i18n elements */
-    function applyI18n() {
-        document.querySelectorAll('[data-i18n]').forEach(el => {
-            el.textContent = t(el.dataset.i18n);
-        });
-    }
-
-    // ─── INIT ───
-    function init() {
-        // Detect locale from server
-        google.script.run
-            .withSuccessHandler(locale => {
-                lang = locale || 'fr';
-                applyI18n();
-                restoreState();
-                loadProjects();
-                loadTodayHistory();
-            })
-            .withFailureHandler(() => {
-                applyI18n();
-                restoreState();
-                loadProjects();
-                loadTodayHistory();
-            })
-            .getUserLocale();
-
-        document.getElementById('projectSelect').addEventListener('change', updateTaskDropdown);
-    }
-
-    // ─── PROJECTS / TASKS (XSS-safe) ───
-    function loadProjects() {
-        google.script.run
-            .withSuccessHandler(data => {
-                fullData = data || [];
-                const sel = document.getElementById('projectSelect');
-                sel.innerHTML = '';
-                addOption(sel, '', t('selectProject'));
-                const projects = [...new Set(data.map(r => r[0]).filter(Boolean))];
-                projects.forEach(p => addOption(sel, p, p));
-
-                // Restore saved project
-                const saved = loadState();
-                if (saved && saved.project) {
-                    sel.value = saved.project;
-                    updateTaskDropdown();
-                    if (saved.task) document.getElementById('taskSelect').value = saved.task;
+            const I18N = {
+                fr: {
+                    projectTask: 'Projet & Tâche',
+                    projet: 'Projet',
+                    tache: 'Tâche',
+                    loading: 'Chargement...',
+                    chooseProjectFirst: "Choisir un projet d'abord",
+                    selectProject: '-- Sélectionner le projet --',
+                    selectTask: '-- Sélectionner la tâche --',
+                    tabChrono: 'Chrono',
+                    tabManual: 'Saisie',
+                    start: 'LANCER',
+                    stop: 'ARRÊTER',
+                    ready: 'Prêt',
+                    recording: 'Enregistrement...',
+                    timing: 'Chronométrage en cours...',
+                    estEnPause: 'En pause',
+                    pausedRestored: 'En pause, restauré',
+                    saveFailed: 'Erreur d\'enregistrement. Durée conservée, réessayez avec ARRÊTER.',
+                    heuresDuree: 'Durée en heures',
+                    save: 'Enregistrer',
+                    dailyProgress: 'Progression du jour',
+                    aujourdhui: "Aujourd'hui",
+                    week: 'Semaine',
+                    noEntries: "Aucune saisie aujourd'hui",
+                    loadingData: 'Chargement...',
+                    error: 'Erreur',
+                    noData: 'Pas de données',
+                    kbStartStop: 'Lancer/Arrêter',
+                    pause: 'Pause',
+                    selectBoth: 'Sélectionnez un projet ET une tâche.',
+                    selectBothShort: 'Sélectionnez projet et tâche.',
+                    invalidDuration: 'Durée invalide.',
+                    min: 'min',
+                    totalWeek: 'Total',
+                    errorLoading: 'Erreur chargement des données',
+                    jours: 'j',
+                    developedBy: 'Développé par',
+                    saved: 'Enregistré !'
+                },
+                en: {
+                    projectTask: 'Project & Task',
+                    projet: 'Project',
+                    tache: 'Task',
+                    loading: 'Loading...',
+                    chooseProjectFirst: 'Choose a projet first',
+                    selectProject: '-- Select projet --',
+                    selectTask: '-- Select tache --',
+                    tabChrono: 'Timer',
+                    tabManual: 'Manual',
+                    start: 'START',
+                    stop: 'STOP',
+                    ready: 'Ready',
+                    recording: 'Saving...',
+                    timing: 'Timing in progress...',
+                    estEnPause: 'Paused',
+                    pausedRestored: 'Paused, restored',
+                    saveFailed: 'Save failed. Duration kept, try STOP again.',
+                    heuresDuree: 'Duration in heures',
+                    save: 'Save',
+                    dailyProgress: 'Daily progress',
+                    aujourdhui: 'Today',
+                    week: 'Week',
+                    noEntries: 'No saisies aujourdhui',
+                    loadingData: 'Loading...',
+                    error: 'Error',
+                    noData: 'No donnees',
+                    kbStartStop: 'Start/Stop',
+                    pause: 'Pause',
+                    selectBoth: 'Please select a projet AND a tache.',
+                    selectBothShort: 'Select projet and tache.',
+                    invalidDuration: 'Invalid duree.',
+                    min: 'min',
+                    totalWeek: 'Total',
+                    errorLoading: 'Error loading donnees',
+                    jours: 'd',
+                    developedBy: 'Developed by',
+                    saved: 'Saved!'
                 }
-            })
-            .withFailureHandler(err => showToast(t('errorLoading'), 'error'))
-            .getProjectsAndTasks();
-    }
+            };
 
-    /** Creates an option element safely (no innerHTML XSS) */
-    function addOption(select, value, text) {
-        const opt = document.createElement('option');
-        opt.value = value;
-        opt.textContent = text;
-        select.appendChild(opt);
-    }
-
-    function updateTaskDropdown() {
-        const proj = document.getElementById('projectSelect').value;
-        const sel = document.getElementById('taskSelect');
-        sel.innerHTML = '';
-        if (!proj) { addOption(sel, '', t('chooseProjectFirst')); return; }
-        addOption(sel, '', t('selectTask'));
-        fullData.filter(r => r[0] === proj).forEach(r => { if (r[1]) addOption(sel, r[1], r[1]); });
-    }
-
-    // ─── TABS ───
-    function switchTab(tabId) {
-        document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tabId));
-        document.querySelectorAll('.tab-content').forEach(c => c.classList.toggle('active', c.id === 'tab-' + tabId));
-        if (tabId === 'week') loadWeekReport();
-    }
-
-    // ─── TIMER ───
-    function toggleTimer() {
-        const proj = document.getElementById('projectSelect').value;
-        const task = document.getElementById('taskSelect').value;
-        if (!proj || !task) { showToast(t('selectBoth'), 'warning'); return; }
-        if (!running) startTimer(); else stopAndSave();
-    }
-
-    function startTimer() {
-        startTime = new Date();
-        pausedElapsed = 0;
-        paused = false;
-        running = true;
-        timerInterval = setInterval(updateDisplay, 1000);
-        updateTimerUI('running');
-        saveState();
-    }
-
-    function pauseTimer() {
-        if (!running) return;
-        if (!paused) {
-            clearInterval(timerInterval);
-            pausedElapsed += (new Date() - startTime);
-            paused = true;
-            document.getElementById('display').classList.remove('running');
-            document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
-            document.getElementById('status').textContent = t('paused');
-            saveState();
-        } else {
-            startTime = new Date();
-            paused = false;
-            timerInterval = setInterval(updateDisplay, 1000);
-            document.getElementById('display').classList.add('running');
-            document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">pause</span>';
-            document.getElementById('status').textContent = t('timing');
-            saveState();
-        }
-    }
-
-    function stopAndSave() {
-        clearInterval(timerInterval);
-        const durationHours = getElapsedMs() / 3600000;
-        const entry = {
-            project: document.getElementById('projectSelect').value,
-            task: document.getElementById('taskSelect').value,
-            duration: durationHours
-        };
-        document.getElementById('status').textContent = t('recording');
-        google.script.run
-            .withSuccessHandler(msg => { showToast(msg || 'Enregistré !', msg && msg.startsWith('⚠') ? 'warning' : 'success'); resetUI(); loadTodayHistory(); })
-            .withFailureHandler(err => { showToast('Erreur : ' + err.message, 'error'); resetUI(); })
-            .saveTimeEntry(entry);
-        clearState();
-    }
-
-    function getElapsedMs() {
-        if (paused) return pausedElapsed;
-        return pausedElapsed + (new Date() - startTime);
-    }
-
-    function updateDisplay() {
-        const diff = getElapsedMs();
-        const h = String(Math.floor(diff / 3600000)).padStart(2, '0');
-        const m = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
-        const s = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
-        document.getElementById('display').textContent = `${h}:${m}:${s}`;
-    }
-
-    function updateTimerUI(state) {
-        const btn = document.getElementById('mainBtn');
-        const pauseBtn = document.getElementById('pauseBtn');
-        const display = document.getElementById('display');
-        if (state === 'running') {
-            btn.innerHTML = '<span class="material-icons-round">stop</span> ' + t('stop');
-            btn.className = 'btn btn-danger';
-            pauseBtn.classList.remove('hidden');
-            display.classList.add('running');
-            document.getElementById('status').textContent = t('timing');
-        } else {
-            btn.innerHTML = '<span class="material-icons-round">play_arrow</span> ' + t('start');
-            btn.className = 'btn btn-primary';
-            pauseBtn.classList.add('hidden');
-            display.classList.remove('running');
-        }
-    }
-
-    function resetUI() {
-        running = false; paused = false; pausedElapsed = 0;
-        document.getElementById('display').textContent = '00:00:00';
-        updateTimerUI('idle');
-        document.getElementById('status').textContent = t('ready');
-    }
-
-    // ─── MANUAL ENTRY ───
-    function saveManual() {
-        const proj = document.getElementById('projectSelect').value;
-        const task = document.getElementById('taskSelect').value;
-        const rawValue = document.getElementById('manualHours').value;
-        const hours = parseFloat(rawValue.replace(',', '.'));
-        if (!proj || !task) { showToast(t('selectBothShort'), 'warning'); return; }
-        if (isNaN(hours) || hours <= 0) { showToast(t('invalidDuration'), 'error'); return; }
-        google.script.run
-            .withSuccessHandler(msg => { showToast(msg, msg && msg.startsWith('⚠') ? 'warning' : 'success'); loadTodayHistory(); })
-            .withFailureHandler(err => showToast('Erreur : ' + err.message, 'error'))
-            .saveManualEntry({ project: proj, task: task, hours: hours });
-    }
-
-    // ─── PERSISTENCE (localStorage) ───
-    function saveState() {
-        const state = {
-            startTime: startTime ? startTime.getTime() : null,
-            running, paused, pausedElapsed,
-            project: document.getElementById('projectSelect').value,
-            task: document.getElementById('taskSelect').value
-        };
-        try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e) {}
-    }
-    function loadState() {
-        try { return JSON.parse(localStorage.getItem(STORAGE_KEY)); } catch(e) { return null; }
-    }
-    function clearState() {
-        try { localStorage.removeItem(STORAGE_KEY); } catch(e) {}
-    }
-    function restoreState() {
-        const s = loadState();
-        if (!s || !s.running) return;
-        running = true;
-        pausedElapsed = s.pausedElapsed || 0;
-        paused = s.paused || false;
-        if (paused) {
-            startTime = null;
-            updateTimerUI('running');
-            document.getElementById('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
-            document.getElementById('status').textContent = t('pausedRestored');
-            updateDisplay();
-        } else {
-            startTime = new Date(s.startTime);
-            timerInterval = setInterval(updateDisplay, 1000);
-            updateTimerUI('running');
-            updateDisplay();
-        }
-    }
-
-    // ─── GAUGE & HISTORY ───
-    function loadTodayHistory() {
-        google.script.run
-            .withSuccessHandler(result => {
-                baseH = result.baseHours || 8;
-                document.getElementById('gaugeLabel').textContent = '/ ' + baseH + 'h';
-                renderHistory(result.entries);
-                updateGauge(result.totalHours);
-            })
-            .withFailureHandler(() => {})
-            .getTodayEntries();
-    }
-
-    function renderHistory(entries) {
-        const el = document.getElementById('historyList');
-        if (!entries || !entries.length) { el.innerHTML = '<div class="history-empty">' + t('noEntries') + '</div>'; return; }
-        el.innerHTML = entries.map(e => `
-            <div class="history-item">
-                <div><div class="history-proj">${esc(e.project)}</div><div class="history-task">${esc(e.task)}</div></div>
-                <div class="history-hours">${e.hours.toFixed(2)}h</div>
-            </div>`).join('');
-    }
-
-    function updateGauge(totalHours) {
-        const max = baseH || 8;
-        const pct = max > 0 ? Math.min(totalHours / max, 1) : 0;
-        const offset = CIRCUMFERENCE * (1 - pct);
-        const fill = document.getElementById('gaugeFill');
-        fill.style.strokeDashoffset = offset;
-        fill.style.stroke = pct < 0.75 ? 'var(--success)' : pct < 0.94 ? 'var(--warning)' : 'var(--error)';
-        document.getElementById('gaugeHours').textContent = totalHours.toFixed(2) + 'h';
-    }
-
-    // ─── WEEKLY ───
-    function loadWeekReport() {
-        document.getElementById('weekReport').innerHTML = '<div class="history-empty">' + t('loadingData') + '</div>';
-        google.script.run
-            .withSuccessHandler(renderWeek)
-            .withFailureHandler(() => { document.getElementById('weekReport').innerHTML = '<div class="history-empty">' + t('error') + '</div>'; })
-            .getWeeklyReport(lang);
-    }
-
-    function renderWeek(data) {
-        const el = document.getElementById('weekReport');
-        if (!data || !data.days) { el.innerHTML = '<div class="history-empty">' + t('noData') + '</div>'; return; }
-        let html = '';
-        let totalBase = 0;
-        Object.entries(data.days).forEach(([day, info]) => {
-            const bh = info.baseHours || 8;
-            totalBase += bh;
-            const pct = bh > 0 ? Math.round((info.total / bh) * 100) : 0;
-            const color = pct >= 100 ? 'var(--success)' : pct >= 75 ? 'var(--warning)' : 'var(--outline)';
-            html += `<div class="week-day"><div class="week-day-header"><span>${esc(day)} <span style="font-weight:400;font-size:10px;color:var(--outline)">(${bh}h)</span></span><span class="week-day-total" style="color:${color}">${info.total.toFixed(2)}h</span></div>`;
-            if (info.entries.length) {
-                info.entries.forEach(e => { html += `<div class="week-entry">${esc(e.project)} — ${esc(e.task)} : ${e.hours.toFixed(2)}h</div>`; });
+            function t(key) {
+                return (I18N[lang] || I18N.fr)[key] || key;
             }
-            html += '</div>';
-        });
-        const avgBase = totalBase > 0 ? totalBase : 40;
-        html += `<div class="week-summary">${t('totalWeek')} : ${data.weekTotal.toFixed(2)}h / ${totalBase}h (${(data.weekTotal / avgBase * 5).toFixed(2)} ${t('days')})</div>`;
-        el.innerHTML = html;
-    }
 
-    // ─── TOAST ───
-    function showToast(msg, type = 'success') {
-        const el = document.getElementById('toast');
-        const icon = document.getElementById('toastIcon');
-        el.className = 'toast toast-' + type;
-        icon.textContent = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'warning';
-        document.getElementById('toastMsg').textContent = msg;
-        el.classList.add('show');
-        setTimeout(() => el.classList.remove('show'), 3500);
-    }
+            function byId(id) {
+                return document.getElementById(id);
+            }
 
-    /** Escape HTML to prevent XSS */
-    function esc(str) {
-        const d = document.createElement('div');
-        d.textContent = str;
-        return d.innerHTML;
-    }
+            function applyI18n() {
+                document.querySelectorAll('[data-i18n]').forEach(el => {
+                    el.textContent = t(el.dataset.i18n);
+                });
+            }
 
-    // ─── KEYBOARD SHORTCUTS ───
-    document.addEventListener('keydown', e => {
-        if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
-        if (e.code === 'Space') { e.preventDefault(); toggleTimer(); }
-        if (e.code === 'KeyP') { e.preventDefault(); pauseTimer(); }
-    });
+            function init() {
+                applyI18n();
+                bindEvents();
 
-    // ─── PUBLIC API ───
-    return { init, toggleTimer, pauseTimer, saveManual, switchTab };
-})();
+                google.script.run
+                    .withSuccessHandler(resultat => {
+                        lang = resultat && resultat.locale ? resultat.locale : 'fr';
+                        applyI18n();
 
-window.onload = App.init;
-</script>
+                        donneesCompletes = resultat && resultat.projectsAndTasks ? resultat.projectsAndTasks : [];
+                        renderProjects(donneesCompletes);
+
+                        if (resultat && resultat.aujourdhui) {
+                            renderToday(resultat.aujourdhui);
+                        } else {
+                            renderToday({ saisies: [], totalHeures: 0, heuresDeBase: 8 });
+                        }
+
+                        restoreState();
+                        setInitialized(true);
+                    })
+                    .withFailureHandler(erreur => {
+                        setInitialized(true);
+                        afficherNotification(t('errorLoading') + formaterMessageErreur(erreur), 'error');
+                        byId('status').textContent = t('error');
+                    })
+                    .obtenirDonneesInitialesBarreLaterale();
+            }
+
+            function bindEvents() {
+                byId('projectSelect').addEventListener('change', () => {
+                    updateTaskDropdown();
+                    persistSelectionIfNeeded();
+                });
+
+                byId('taskSelect').addEventListener('change', persistSelectionIfNeeded);
+            }
+
+            function setInitialized(valeur) {
+                initialise = valeur;
+                byId('loadingLine').classList.toggle('hidden', valeur);
+                byId('projectSelect').disabled = !valeur;
+                byId('taskSelect').disabled = !valeur || !byId('projectSelect').valeur;
+                byId('manualHours').disabled = !valeur;
+                setSavingState(false);
+
+                if (valeur && !estEnCours) {
+                    byId('status').textContent = t('ready');
+                }
+            }
+
+            function renderProjects(donnees) {
+                const projectSelect = byId('projectSelect');
+                projectSelect.innerHTML = '';
+                addOption(projectSelect, '', t('selectProject'));
+
+                const projects = [...new Set((donnees || []).map(ligne => ligne[0]).filter(Boolean))];
+                projects.forEach(projet => addOption(projectSelect, projet, projet));
+
+                const saved = chargerEtat();
+                if (saved && saved.projet) {
+                    projectSelect.valeur = saved.projet;
+                }
+
+                updateTaskDropdown();
+
+                if (saved && saved.tache) {
+                    byId('taskSelect').valeur = saved.tache;
+                }
+            }
+
+            function addOption(select, valeur, text) {
+                const option = document.createElement('option');
+                option.valeur = valeur;
+                option.textContent = text;
+                select.appendChild(option);
+            }
+
+            function updateTaskDropdown() {
+                const projet = byId('projectSelect').valeur;
+                const taskSelect = byId('taskSelect');
+
+                taskSelect.innerHTML = '';
+
+                if (!projet) {
+                    addOption(taskSelect, '', t('chooseProjectFirst'));
+                    taskSelect.disabled = true;
+                    return;
+                }
+
+                addOption(taskSelect, '', t('selectTask'));
+
+                const tasks = [...new Set(
+                    donneesCompletes
+                        .filter(ligne => ligne[0] === projet && ligne[1])
+                        .map(ligne => ligne[1])
+                )];
+
+                tasks.forEach(tache => addOption(taskSelect, tache, tache));
+                taskSelect.disabled = !initialise;
+            }
+
+            function changerOnglet(tabId) {
+                const groupName = Object.keys(TAB_GROUPS).find(name => TAB_GROUPS[name].includes(tabId));
+                if (!groupName) return;
+
+                document.querySelectorAll(`.tab[data-tab-group="${groupName}"]`).forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.tab === tabId);
+                });
+
+                document.querySelectorAll(`.tab-content[data-tab-group-content="${groupName}"]`).forEach(content => {
+                    content.classList.toggle('active', content.id === 'tab-' + tabId);
+                });
+
+                if (tabId === 'week') {
+                    loadWeekReport();
+                }
+            }
+
+            function basculerChrono() {
+                if (!initialise || sauvegardeEnCours) return;
+
+                const projet = byId('projectSelect').valeur;
+                const tache = byId('taskSelect').valeur;
+
+                if (!projet || !tache) {
+                    afficherNotification(t('selectBoth'), 'warning');
+                    return;
+                }
+
+                if (!estEnCours) {
+                    demarrerChrono();
+                } else {
+                    arreterEtEnregistrer();
+                }
+            }
+
+            function demarrerChrono() {
+                heureDebut = new Date();
+                tempsEcouleEnPause = 0;
+                estEnPause = false;
+                estEnCours = true;
+
+                clearInterval(intervalleChrono);
+                intervalleChrono = setInterval(updateDisplay, 1000);
+                updateDisplay();
+                mettreAJourInterfaceChrono('estEnCours');
+                sauvegarderEtat();
+            }
+
+            function mettreEnPauseChrono() {
+                if (!initialise || sauvegardeEnCours || !estEnCours) return;
+
+                if (!estEnPause) {
+                    clearInterval(intervalleChrono);
+                    tempsEcouleEnPause = obtenirMsEcoulees();
+                    estEnPause = true;
+                    heureDebut = null;
+                    byId('display').classList.remove('estEnCours');
+                    byId('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
+                    byId('status').textContent = t('estEnPause');
+                    updateDisplay();
+                    sauvegarderEtat();
+                    return;
+                }
+
+                heureDebut = new Date();
+                estEnPause = false;
+                clearInterval(intervalleChrono);
+                intervalleChrono = setInterval(updateDisplay, 1000);
+                byId('display').classList.add('estEnCours');
+                byId('pauseBtn').innerHTML = '<span class="material-icons-round">pause</span>';
+                byId('status').textContent = t('timing');
+                sauvegarderEtat();
+            }
+
+            function arreterEtEnregistrer() {
+                if (sauvegardeEnCours) return;
+
+                const durationMs = obtenirMsEcoulees();
+                if (durationMs <= 0) {
+                    afficherNotification(t('invalidDuration'), 'error');
+                    return;
+                }
+
+                clearInterval(intervalleChrono);
+                tempsEcouleEnPause = durationMs;
+                estEnPause = true;
+                heureDebut = null;
+                updateDisplay();
+
+                const saisie = {
+                    projet: byId('projectSelect').valeur,
+                    tache: byId('taskSelect').valeur,
+                    duree: durationMs / 3600000
+                };
+
+                byId('status').textContent = t('recording');
+                setSavingState(true);
+
+                google.script.run
+                    .withSuccessHandler(message => {
+                        effacerEtat();
+                        resetUI();
+                        setSavingState(false);
+                        afficherNotification(message || t('saved'), getToastTypeFromMessage(message));
+                        chargerHistoriqueJour();
+                    })
+                    .withFailureHandler(erreur => {
+                        estEnCours = true;
+                        estEnPause = true;
+                        heureDebut = null;
+                        clearInterval(intervalleChrono);
+                        mettreAJourInterfaceChrono('estEnCours');
+                        byId('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
+                        byId('display').classList.remove('estEnCours');
+                        byId('status').textContent = t('saveFailed');
+                        setSavingState(false);
+                        sauvegarderEtat();
+                        afficherNotification(t('error') + formaterMessageErreur(erreur), 'error');
+                    })
+                    .enregistrerSaisieTemps(saisie);
+            }
+
+            function obtenirMsEcoulees() {
+                if (!estEnCours) return 0;
+                if (estEnPause) return tempsEcouleEnPause || 0;
+                if (!heureDebut) return tempsEcouleEnPause || 0;
+                return (tempsEcouleEnPause || 0) + (new Date() - heureDebut);
+            }
+
+            function updateDisplay() {
+                const diff = obtenirMsEcoulees();
+                const heures = String(Math.floor(diff / 3600000)).padStart(2, '0');
+                const minutes = String(Math.floor((diff % 3600000) / 60000)).padStart(2, '0');
+                const seconds = String(Math.floor((diff % 60000) / 1000)).padStart(2, '0');
+
+                byId('display').textContent = `${heures}:${minutes}:${seconds}`;
+            }
+
+            function mettreAJourInterfaceChrono(etat) {
+                const mainBtn = byId('mainBtn');
+                const pauseBtn = byId('pauseBtn');
+                const display = byId('display');
+
+                if (etat === 'estEnCours') {
+                    mainBtn.innerHTML = '<span class="material-icons-round">stop</span> ' + t('stop');
+                    mainBtn.className = 'btn btn-danger';
+                    pauseBtn.classList.remove('hidden');
+                    display.classList.toggle('estEnCours', !estEnPause);
+                    byId('status').textContent = estEnPause ? t('estEnPause') : t('timing');
+                    return;
+                }
+
+                mainBtn.innerHTML = '<span class="material-icons-round">play_arrow</span> ' + t('start');
+                mainBtn.className = 'btn btn-primary';
+                pauseBtn.classList.add('hidden');
+                pauseBtn.innerHTML = '<span class="material-icons-round">pause</span>';
+                display.classList.remove('estEnCours');
+            }
+
+            function resetUI() {
+                estEnCours = false;
+                estEnPause = false;
+                tempsEcouleEnPause = 0;
+                heureDebut = null;
+                clearInterval(intervalleChrono);
+                intervalleChrono = null;
+                byId('display').textContent = '00:00:00';
+                mettreAJourInterfaceChrono('idle');
+                byId('status').textContent = t('ready');
+            }
+
+            function setSavingState(isSaving) {
+                sauvegardeEnCours = isSaving;
+
+                const shouldDisable = isSaving || !initialise;
+                byId('mainBtn').disabled = shouldDisable;
+                byId('pauseBtn').disabled = shouldDisable;
+                byId('manualSaveBtn').disabled = shouldDisable;
+                byId('manualHours').disabled = shouldDisable;
+                byId('projectSelect').disabled = shouldDisable;
+                byId('taskSelect').disabled = shouldDisable || !byId('projectSelect').valeur;
+            }
+
+            function enregistrerManuellement() {
+                if (!initialise || sauvegardeEnCours) return;
+
+                const projet = byId('projectSelect').valeur;
+                const tache = byId('taskSelect').valeur;
+                const heures = parseFloat(byId('manualHours').valeur);
+
+                if (!projet || !tache) {
+                    afficherNotification(t('selectBothShort'), 'warning');
+                    return;
+                }
+
+                if (isNaN(heures) || heures <= 0) {
+                    afficherNotification(t('invalidDuration'), 'error');
+                    return;
+                }
+
+                setSavingState(true);
+                byId('status').textContent = t('recording');
+
+                google.script.run
+                    .withSuccessHandler(message => {
+                        afficherNotification(message || t('saved'), getToastTypeFromMessage(message));
+                        byId('manualHours').valeur = '0.5';
+                        byId('status').textContent = t('ready');
+                        setSavingState(false);
+                        chargerHistoriqueJour();
+                    })
+                    .withFailureHandler(erreur => {
+                        afficherNotification(t('error') + formaterMessageErreur(erreur), 'error');
+                        byId('status').textContent = t('ready');
+                        setSavingState(false);
+                    })
+                    .enregistrerSaisieManuelle({ projet, tache, heures });
+            }
+
+            function sauvegarderEtat() {
+                const etat = {
+                    heureDebut: heureDebut ? heureDebut.getTime() : null,
+                    estEnCours,
+                    estEnPause,
+                    tempsEcouleEnPause,
+                    projet: byId('projectSelect').valeur,
+                    tache: byId('taskSelect').valeur
+                };
+
+                try {
+                    localStorage.setItem(STORAGE_KEY, JSON.stringify(etat));
+                } catch (e) { }
+            }
+
+            function chargerEtat() {
+                try {
+                    return JSON.parse(localStorage.getItem(STORAGE_KEY));
+                } catch (e) {
+                    return null;
+                }
+            }
+
+            function effacerEtat() {
+                try {
+                    localStorage.removeItem(STORAGE_KEY);
+                } catch (e) { }
+            }
+
+            function persistSelectionIfNeeded() {
+                if (estEnCours || estEnPause) {
+                    sauvegarderEtat();
+                }
+            }
+
+            function restoreState() {
+                const etat = chargerEtat();
+                if (!etat || !etat.estEnCours) return;
+
+                estEnCours = true;
+                tempsEcouleEnPause = etat.tempsEcouleEnPause || 0;
+                estEnPause = Boolean(etat.estEnPause);
+
+                if (estEnPause) {
+                    heureDebut = null;
+                    mettreAJourInterfaceChrono('estEnCours');
+                    byId('pauseBtn').innerHTML = '<span class="material-icons-round">play_arrow</span>';
+                    byId('status').textContent = t('pausedRestored');
+                    updateDisplay();
+                    return;
+                }
+
+                heureDebut = etat.heureDebut ? new Date(etat.heureDebut) : new Date();
+                clearInterval(intervalleChrono);
+                intervalleChrono = setInterval(updateDisplay, 1000);
+                mettreAJourInterfaceChrono('estEnCours');
+                updateDisplay();
+            }
+
+            function renderToday(resultat) {
+                baseH = resultat.heuresDeBase || 8;
+                byId('manualHours').max = baseH;
+                byId('gaugeLabel').textContent = '/ ' + baseH + 'h';
+                renderHistory(resultat.saisies || []);
+                mettreAJourJauge(resultat.totalHeures || 0);
+            }
+
+            function chargerHistoriqueJour() {
+                google.script.run
+                    .withSuccessHandler(renderToday)
+                    .withFailureHandler(erreur => afficherNotification(t('error') + formaterMessageErreur(erreur), 'error'))
+                    .obtenirSaisiesAujourdhui();
+            }
+
+            function renderHistory(saisies) {
+                const container = byId('historyList');
+
+                if (!saisies || !saisies.length) {
+                    container.innerHTML = '<div class="history-empty">' + t('noEntries') + '</div>';
+                    return;
+                }
+
+                container.innerHTML = saisies.map(saisie => `
+          <div class="history-item">
+            <div>
+              <div class="history-proj">${esc(saisie.projet)}</div>
+              <div class="history-tache">${esc(saisie.tache)}</div>
+            </div>
+            <div class="history-heures">${Number(saisie.heures || 0).toFixed(2)}h</div>
+          </div>
+        `).join('');
+            }
+
+            function mettreAJourJauge(totalHeures) {
+                const max = baseH || 8;
+                const pct = max > 0 ? Math.min(totalHeures / max, 1) : 0;
+                const offset = CIRCUMFERENCE * (1 - pct);
+                const fill = byId('gaugeFill');
+
+                fill.style.strokeDashoffset = offset;
+                fill.style.stroke = pct < 0.75 ? 'var(--success)' : pct < 0.94 ? 'var(--warning)' : 'var(--error)';
+                byId('gaugeHours').textContent = Number(totalHeures || 0).toFixed(2) + 'h';
+            }
+
+            function loadWeekReport() {
+                byId('weekReport').innerHTML = '<div class="history-empty">' + t('loadingData') + '</div>';
+
+                google.script.run
+                    .withSuccessHandler(renderWeek)
+                    .withFailureHandler(erreur => {
+                        byId('weekReport').innerHTML = '<div class="history-empty">' + t('error') + '</div>';
+                        afficherNotification(t('error') + formaterMessageErreur(erreur), 'error');
+                    })
+                    .obtenirRapportHebdomadaire(lang);
+            }
+
+            function renderWeek(donnees) {
+                const container = byId('weekReport');
+
+                if (!donnees || !donnees.jours) {
+                    container.innerHTML = '<div class="history-empty">' + t('noData') + '</div>';
+                    return;
+                }
+
+                let html = '';
+                let totalBase = 0;
+
+                Object.saisies(donnees.jours).forEach(([day, info]) => {
+                    const heuresDeBase = Number(info.heuresDeBase || 0);
+                    const total = Number(info.total || 0);
+                    totalBase += heuresDeBase;
+
+                    const pct = heuresDeBase > 0 ? Math.round((total / heuresDeBase) * 100) : 0;
+                    const color = pct >= 100 ? 'var(--success)' : pct >= 75 ? 'var(--warning)' : 'var(--outline)';
+
+                    html += `
+            <div class="week-day">
+              <div class="week-day-header">
+                <span>${esc(day)} <span style="font-weight:400;font-size:10px;color:var(--outline)">(${heuresDeBase}h)</span></span>
+                <span class="week-day-total" style="color:${color}">${total.toFixed(2)}h</span>
+              </div>
+          `;
+
+                    if (info.saisies && info.saisies.length) {
+                        info.saisies.forEach(saisie => {
+                            html += `<div class="week-saisie">${esc(saisie.projet)} - ${esc(saisie.tache)} : ${Number(saisie.heures || 0).toFixed(2)}h</div>`;
+                        });
+                    }
+
+                    html += '</div>';
+                });
+
+                const avgBase = totalBase > 0 ? totalBase : 40;
+                const equivalentJours = avgBase > 0 ? (donnees.totalSemaine / avgBase * 5).toFixed(2) : '0.00';
+
+                html += `<div class="week-resume">${t('totalWeek')} : ${Number(donnees.totalSemaine || 0).toFixed(2)}h / ${totalBase}h (${equivalentJours} ${t('jours')})</div>`;
+                container.innerHTML = html;
+            }
+
+            function afficherNotification(message, type = 'success') {
+                const toast = byId('toast');
+                const icon = byId('toastIcon');
+
+                toast.className = 'toast toast-' + type;
+                icon.textContent = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'warning';
+                byId('toastMsg').textContent = message;
+
+                toast.classList.add('show');
+                setTimeout(() => toast.classList.remove('show'), 3500);
+            }
+
+            function getToastTypeFromMessage(message) {
+                if (!message) return 'success';
+                if (message.startsWith('⚠')) return 'warning';
+                if (message.startsWith('❌') || message.startsWith('⛔')) return 'error';
+                return 'success';
+            }
+
+            function formaterMessageErreur(erreur) {
+                const message = erreur && erreur.message ? erreur.message : '';
+                return message ? ' : ' + message : '';
+            }
+
+            function esc(valeur) {
+                const div = document.createElement('div');
+                div.textContent = valeur == null ? '' : String(valeur);
+                return div.innerHTML;
+            }
+
+            document.addEventListener('keydown', event => {
+                const nomBalise = event.target && event.target.nomBalise ? event.target.nomBalise : '';
+                if (nomBalise === 'INPUT' || nomBalise === 'SELECT' || sauvegardeEnCours || !initialise) return;
+
+                if (event.code === 'Space') {
+                    event.preventDefault();
+                    basculerChrono();
+                }
+
+                if (event.code === 'KeyP') {
+                    event.preventDefault();
+                    mettreEnPauseChrono();
+                }
+            });
+
+            return {
+                init,
+                basculerChrono,
+                mettreEnPauseChrono,
+                enregistrerManuellement,
+                changerOnglet
+            };
+        })();
+
+        window.onload = App.init;
+    </script>
 </body>
+
 </html>

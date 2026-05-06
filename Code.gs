@@ -1,849 +1,1200 @@
-    /**
-     * ============================================================
-     *  TRAQUEUR DE TEMPS — Google Apps Script
-     * ============================================================
-     *  Auteur      : Fabrice Faucheux
-     *  Description : Sidebar et Web App de suivi du temps de travail
-     *                intégrée à Google Sheets. Permet de chronomé-
-     *                trer des tâches par projet, de les enregistrer
-     *                dans un Journal, et de recevoir un rapport par
-     *                e-mail dès que l'objectif quotidien est atteint.
-     *  Onglets     : Config (projets/tâches), Journal (saisies),
-     *                Paramètres (heures/jour configurables)
-     *  Version     : 2.0
-     * ============================================================
-     */
-
-    /**
-     * ============================================================
-     *  CONFIGURATION GLOBALE
-     * ============================================================
-     */
-
-    /** @const {number} Nombre d'heures journalières par défaut (fallback si aucune config dans Paramètres) */
-    const DEFAULT_BASE_HOURS = 8;
-
-    /** @const {Array<string>} Noms des jours en français, indexés comme Date.getDay() (0=Dimanche) */
-    const DAYS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-
-    /**
-     * Retourne le nombre d'heures-base configuré pour le jour en cours.
-     *
-     * Lit l'onglet « Paramètres » (colonnes Jour / Heures) et cherche
-     * la ligne correspondant au jour de la semaine actuel (ex: Lundi → 8).
-     * Si l'onglet est absent ou vide, renvoie DEFAULT_BASE_HOURS.
-     *
-     * @return {number} Nombre d'heures cibles pour aujourd'hui
-     * @private
-     */
-    const getBaseHoursToday_ = () => {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Paramètres');
-    if (!sheet || sheet.getLastRow() < 2) return DEFAULT_BASE_HOURS;
-
-    const now = new Date();
-    const tz = ss.getSpreadsheetTimeZone();
-    const dayIndex = parseInt(Utilities.formatDate(now, tz, 'u')); // 1=lun...7=dim (ISO)
-    const dayName = DAYS_FR[dayIndex === 7 ? 0 : dayIndex]; // convertir en index DAYS_FR
-
-    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
-    for (const [jour, heures] of data) {
-        if (String(jour).trim().toLowerCase() === dayName.toLowerCase()) {
-        const h = parseFloat(String(heures).replace(',', '.'));
-        return (isNaN(h) || h <= 0) ? DEFAULT_BASE_HOURS : h;
-        }
-    }
-    return DEFAULT_BASE_HOURS;
-    };
-
-    /**
-     * Retourne le nombre d'heures-base configuré pour une date donnée.
-     *
-     * Identique à getBaseHoursToday_() mais accepte n'importe quelle Date.
-     * Utilisé par le rapport hebdomadaire pour afficher la cible de chaque jour.
-     *
-     * @param {Date} date - La date pour laquelle récupérer la base horaire
-     * @return {number} Nombre d'heures cibles pour ce jour
-     * @private
-     */
-    const getBaseHoursForDate_ = (date) => {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Paramètres');
-    if (!sheet || sheet.getLastRow() < 2) return DEFAULT_BASE_HOURS;
-
-    const tz = ss.getSpreadsheetTimeZone();
-    const dayIndex = parseInt(Utilities.formatDate(date, tz, 'u'));
-    const dayName = DAYS_FR[dayIndex === 7 ? 0 : dayIndex];
-
-    const data = sheet.getRange(2, 1, sheet.getLastRow() - 1, 2).getValues();
-    for (const [jour, heures] of data) {
-        if (String(jour).trim().toLowerCase() === dayName.toLowerCase()) {
-        const h = parseFloat(String(heures).replace(',', '.'));
-        return (isNaN(h) || h <= 0) ? DEFAULT_BASE_HOURS : h;
-        }
-    }
-    return DEFAULT_BASE_HOURS;
-    };
-
-    /**
-     * Retourne la date du jour au format dd/MM/yyyy.
-     *
-     * Utilise le fuseau horaire du Spreadsheet (pas celui du serveur Apps Script)
-     * pour garantir la cohérence avec les dates stockées dans le Journal.
-     *
-     * @return {string} Date du jour, ex : "29/04/2026"
-     * @private
-     */
-    const getTodayString_ = () => {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    return Utilities.formatDate(new Date(), ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy');
-    };
-
-    /**
-     * Formate une cellule Date en chaîne dd/MM/yyyy.
-     *
-     * Google Sheets peut stocker les dates sous forme d'objet Date ou de string.
-     * Cette fonction normalise les deux cas dans le fuseau du Spreadsheet.
-     *
-     * @param {Date|string} date - Valeur brute lue depuis getValues()
-     * @return {string} Date formatée, ex : "29/04/2026"
-     * @private
-     */
-    const formatDateCell_ = (date) => {
-    if (date instanceof Date) {
-        const ss = SpreadsheetApp.getActiveSpreadsheet();
-        return Utilities.formatDate(date, ss.getSpreadsheetTimeZone(), 'dd/MM/yyyy');
-    }
-    return String(date);
-    };
+/**
+ * ============================================================================
+ *  TRAQUEUR DE TEMPS (Time Tracker) - Google Apps Script
+ * ============================================================================
+ *  Auteur      : Fabrice Faucheux (https://faucheux.bzh)
+ *  Version     : 2.1
+ *  
+ *  Description :
+ *  Application complète et autonome de suivi du temps de travail, conçue pour 
+ *  fonctionner nativement comme module complémentaire dans Google Sheets.
+ *
+ *  Fonctionnalités principales :
+ *  - Interface (Sidebar) fluide offrant un chronomètre en direct ou une saisie manuelle.
+ *  - Gestion dynamique et bilingue (Français / Anglais) de l'interface et des rapports.
+ *  - Calcul intelligent des quotas journaliers de travail (paramétrables par jour).
+ *  - Rapports e-mail automatisés : alertes d'objectif quotidien et bilans hebdomadaires.
+ *  - Traitement sécurisé (LockService) pour éviter les doublons lors des saisies simultanées.
+ * ============================================================================
+ */
 
 
-    /**
-     * ============================================================
-     *  CRÉATION AUTOMATIQUE DES ONGLETS
-     * ============================================================
-     */
+/**
+ * ============================================================
+ *  CONFIGURATION GLOBALE
+ * ============================================================
+ */
 
-    /**
-     * Vérifie et crée automatiquement les onglets nécessaires au fonctionnement.
-     *
-     * Crée les 3 onglets s'ils sont absents, avec en-têtes formatés,
-     * largeurs de colonnes et première ligne figée :
-     *   - « Config »     : liste des couples Projet / Tâche disponibles
-     *   - « Journal »    : historique de toutes les saisies de temps
-     *   - « Paramètres » : nombre d'heures cibles par jour de la semaine
-     *
-     * Appelé systématiquement à l'ouverture (onOpen) et avant chaque
-     * lecture/écriture pour garantir l'intégrité de la structure.
-     *
-     * @private
-     */
-    const ensureSheets_ = () => {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
+const HEURES_BASE_DEFAUT = 8;
+const TAILLE_LOT_JOURNAL = 500;
 
-    // --- Onglet Config ---
-    if (!ss.getSheetByName('Config')) {
-        const s = ss.insertSheet('Config');
-        s.getRange('A1:B1').setValues([['Projet', 'Tâche']]);
-        s.getRange('A1:B1').setFontWeight('bold').setBackground('#E8DEF8');
-        s.setColumnWidth(1, 200);
-        s.setColumnWidth(2, 250);
-        s.setFrozenRows(1);
+const NOMS_ONGLETS = {
+    CONFIG: 'Config',
+    JOURNAL: 'Journal',
+    PARAMETRES: 'Paramètres'
+};
+
+const ENTETES_CONFIG = ['Projet', 'Tâche'];
+const ENTETES_JOURNAL = ['Date', 'Projet', 'Tâche', 'Heures', 'Jours', 'DateKey'];
+const ENTETES_PARAMETRES = ['Jour', 'Heures'];
+
+const JOURS_FR = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+
+
+/**
+ * ============================================================
+ *  UTILITAIRES GÉNÉRAUX
+ * ============================================================
+ */
+
+function obtenirTableur_() {
+    return SpreadsheetApp.getActiveSpreadsheet();
+}
+
+function obtenirFuseauHoraire_() {
+    return obtenirTableur_().getSpreadsheetTimeZone();
+}
+
+function normaliserTexte_(valeur) {
+    return String(valeur || '').trim();
+}
+
+function normaliserCle_(valeur) {
+    return normaliserTexte_(valeur).toLowerCase();
+}
+
+function normaliserTexteComparaison_(valeur) {
+    return String(valeur || '')
+        .normalize('NFKC')
+        .replace(/\u00A0/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .toLowerCase();
+}
+
+function obtenirChaineDatePourDate_(date, fuseau) {
+    return Utilities.formatDate(date, fuseau || obtenirFuseauHoraire_(), 'dd/MM/yyyy');
+}
+
+function obtenirCleDatePourDate_(date, fuseau) {
+    return Utilities.formatDate(date, fuseau || obtenirFuseauHoraire_(), 'yyyy-MM-dd');
+}
+
+function obtenirDateDuJourStr_() {
+    return obtenirChaineDatePourDate_(new Date(), obtenirFuseauHoraire_());
+}
+
+function obtenirCleAujourdhui_() {
+    return obtenirCleDatePourDate_(new Date(), obtenirFuseauHoraire_());
+}
+
+function analyserChaineDateFrancaise_(chaineDate) {
+    const parts = String(chaineDate || '').split('/');
+    if (parts.length !== 3) return null;
+
+    const day = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const year = parseInt(parts[2], 10);
+
+    if (isNaN(day) || isNaN(month) || isNaN(year)) return null;
+    return new Date(year, month, day);
+}
+
+function formaterCelluleDate_(valeur, fuseau) {
+    if (valeur instanceof Date) {
+        return obtenirChaineDatePourDate_(valeur, fuseau || obtenirFuseauHoraire_());
     }
 
-    // --- Onglet Journal ---
-    if (!ss.getSheetByName('Journal')) {
-        const s = ss.insertSheet('Journal');
-        s.getRange('A1:E1').setValues([['Date', 'Projet', 'Tâche', 'Heures', 'Jours']]);
-        s.getRange('A1:E1').setFontWeight('bold').setBackground('#E8DEF8');
-        s.setColumnWidth(1, 110);
-        s.setColumnWidth(2, 180);
-        s.setColumnWidth(3, 220);
-        s.setColumnWidth(4, 80);
-        s.setColumnWidth(5, 80);
-        s.setFrozenRows(1);
+    const raw = normaliserTexte_(valeur);
+    if (!raw) return '';
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        const [year, month, day] = raw.split('-');
+        return `${day}/${month}/${year}`;
     }
 
-    // --- Onglet Paramètres ---
-    if (!ss.getSheetByName('Paramètres')) {
-        const s = ss.insertSheet('Paramètres');
-        s.getRange('A1:B1').setValues([['Jour', 'Heures']]);
-        s.getRange('A1:B1').setFontWeight('bold').setBackground('#E8DEF8');
-        const jours = [['Lundi', 8], ['Mardi', 8], ['Mercredi', 8], ['Jeudi', 8], ['Vendredi', 8], ['Samedi', 0], ['Dimanche', 0]];
-        s.getRange(2, 1, 7, 2).setValues(jours);
-        s.setColumnWidth(1, 120);
-        s.setColumnWidth(2, 80);
-        s.setFrozenRows(1);
+    return raw;
+}
+
+function obtenirCleDateDepuisCellule_(valeur, fuseau) {
+    if (valeur instanceof Date) {
+        return obtenirCleDatePourDate_(valeur, fuseau || obtenirFuseauHoraire_());
     }
-    };
+
+    const raw = normaliserTexte_(valeur);
+    if (!raw) return '';
+
+    if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) {
+        return raw;
+    }
+
+    if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+        const [day, month, year] = raw.split('/');
+        return `${year}-${month}-${day}`;
+    }
+
+    return '';
+}
+
+function obtenirNomJourFrancais_(date, fuseau) {
+    const dayIndex = parseInt(Utilities.formatDate(date, fuseau || obtenirFuseauHoraire_(), 'u'), 10);
+    return JOURS_FR[dayIndex === 7 ? 0 : dayIndex];
+}
+
+function obtenirCarteHeuresDeBase_() {
+    const tableur = obtenirTableur_();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.PARAMETRES);
+    const map = {};
+
+    if (!onglet || onglet.getLastRow() < 2) return map;
+
+    const values = onglet.getRange(2, 1, onglet.getLastRow() - 1, 2).getValues();
+
+    values.forEach(([jour, heures]) => {
+        const key = normaliserCle_(jour);
+        if (!key) return;
+
+        const parsedHours = parseFloat(heures);
+        map[key] = isNaN(parsedHours) || parsedHours < 0 ? HEURES_BASE_DEFAUT : parsedHours;
+    });
+
+    return map;
+}
+
+function obtenirHeuresDeBasePourDateDepuisCarte_(date, carteHeuresBase, fuseau) {
+    const nomJour = obtenirNomJourFrancais_(date, fuseau || obtenirFuseauHoraire_());
+    const key = normaliserCle_(nomJour);
+
+    if (Object.prototype.hasOwnProperty.call(carteHeuresBase, key)) {
+        return carteHeuresBase[key];
+    }
+
+    return HEURES_BASE_DEFAUT;
+}
+
+function obtenirHeuresDeBasePourDate_(date) {
+    return obtenirHeuresDeBasePourDateDepuisCarte_(date, obtenirCarteHeuresDeBase_(), obtenirFuseauHoraire_());
+}
+
+function obtenirHeuresDeBaseAujourdhui_() {
+    return obtenirHeuresDeBasePourDate_(new Date());
+}
+
+function ratioSecurise_(heures, heuresDeBase) {
+    return heuresDeBase > 0 ? heures / heuresDeBase : 0;
+}
 
 
-    /**
-     * ============================================================
-     *  MENU, SIDEBAR & WEB APP
-     * ============================================================
-     */
+/**
+ * ============================================================
+ *  CRÉATION ET CONTRÔLE DES ONGLETS
+ * ============================================================
+ */
 
-    /**
-     * Crée le menu « ⏱️ Minuteur » dans la barre de menus Google Sheets.
-     *
-     * Déclenché automatiquement à l'ouverture du fichier (trigger onOpen).
-     * Initialise aussi les onglets via ensureSheets_() si nécessaire.
-     *
-     * Entrées du menu :
-     *   - « Ouvrir le suivi »            → showSidebar()
-     *   - « Ajouter 30min à la sélection » → addTimeToSelection()
-     */
-    const onOpen = () => {
-    ensureSheets_();
+function assurerPresenceOnglets_() {
+    const tableur = obtenirTableur_();
+
+    assurerOngletConfig_(tableur);
+    assurerOngletJournal_(tableur);
+    assurerOngletParametres_(tableur);
+}
+
+function assurerOngletConfig_(tableur) {
+    let onglet = tableur.getSheetByName(NOMS_ONGLETS.CONFIG);
+
+    if (!onglet) {
+        onglet = tableur.insertSheet(NOMS_ONGLETS.CONFIG);
+        onglet.getRange(1, 1, 1, ENTETES_CONFIG.length).setValues([ENTETES_CONFIG]);
+        onglet.getRange('A1:B1').setFontWeight('bold').setBackground('#E8DEF8');
+        onglet.setColumnWidth(1, 200);
+        onglet.setColumnWidth(2, 250);
+        onglet.setFrozenRows(1);
+        return;
+    }
+
+    assurerEntete_(onglet, ENTETES_CONFIG);
+}
+
+function assurerOngletJournal_(tableur) {
+    let onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
+
+    if (!onglet) {
+        onglet = tableur.insertSheet(NOMS_ONGLETS.JOURNAL);
+        onglet.getRange(1, 1, 1, ENTETES_JOURNAL.length).setValues([ENTETES_JOURNAL]);
+        onglet.getRange(1, 1, 1, ENTETES_JOURNAL.length).setFontWeight('bold').setBackground('#E8DEF8');
+        onglet.setColumnWidth(1, 110);
+        onglet.setColumnWidth(2, 180);
+        onglet.setColumnWidth(3, 220);
+        onglet.setColumnWidth(4, 80);
+        onglet.setColumnWidth(5, 80);
+        onglet.setColumnWidth(6, 100);
+        onglet.hideColumns(6);
+        onglet.setFrozenRows(1);
+        return;
+    }
+
+    assurerEntete_(onglet, ENTETES_JOURNAL);
+
+    try {
+        onglet.hideColumns(6);
+    } catch (e) {
+        // Colonne déjà masquée ou non disponible. Rien de bloquant.
+    }
+}
+
+function assurerOngletParametres_(tableur) {
+    let onglet = tableur.getSheetByName(NOMS_ONGLETS.PARAMETRES);
+
+    if (!onglet) {
+        onglet = tableur.insertSheet(NOMS_ONGLETS.PARAMETRES);
+        onglet.getRange(1, 1, 1, ENTETES_PARAMETRES.length).setValues([ENTETES_PARAMETRES]);
+        onglet.getRange('A1:B1').setFontWeight('bold').setBackground('#E8DEF8');
+
+        const jours = [
+            ['Lundi', 8],
+            ['Mardi', 8],
+            ['Mercredi', 8],
+            ['Jeudi', 8],
+            ['Vendredi', 8],
+            ['Samedi', 0],
+            ['Dimanche', 0]
+        ];
+
+        onglet.getRange(2, 1, jours.length, jours[0].length).setValues(jours);
+        onglet.setColumnWidth(1, 120);
+        onglet.setColumnWidth(2, 80);
+        onglet.setFrozenRows(1);
+        return;
+    }
+
+    assurerEntete_(onglet, ENTETES_PARAMETRES);
+}
+
+function assurerEntete_(onglet, entetes) {
+    const current = onglet.getRange(1, 1, 1, entetes.length).getValues()[0];
+    const mustUpdate = entetes.some((header, index) => normaliserTexte_(current[index]) !== header);
+
+    if (!mustUpdate) return;
+
+    onglet.getRange(1, 1, 1, entetes.length).setValues([entetes]);
+    onglet.getRange(1, 1, 1, entetes.length).setFontWeight('bold').setBackground('#E8DEF8');
+
+    if (onglet.getFrozenRows() < 1) {
+        onglet.setFrozenRows(1);
+    }
+}
+
+
+/**
+ * Remplit la colonne technique DateKey pour les anciennes lignes du Journal.
+ * À lancer une fois depuis le menu si le Journal contient déjà beaucoup d'historique.
+ */
+function backfillJournalDateKeys() {
+    assurerPresenceOnglets_();
+
+    const interfaceUtilisateur = SpreadsheetApp.getUi();
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
+    const lastRow = onglet.getLastRow();
+
+    if (lastRow < 2) {
+        interfaceUtilisateur.alert('ℹ️ Le Journal ne contient aucune ligne à optimiser.');
+        return;
+    }
+
+    const values = onglet.getRange(2, 1, lastRow - 1, ENTETES_JOURNAL.length).getValues();
+    let updatedCount = 0;
+
+    const dateKeys = values.map(ligne => {
+        const existingKey = normaliserTexte_(ligne[5]);
+        if (existingKey) return [existingKey];
+
+        const dateKey = obtenirCleDateDepuisCellule_(ligne[0], fuseau);
+        if (dateKey) updatedCount += 1;
+        return [dateKey];
+    });
+
+    if (updatedCount > 0) {
+        onglet.getRange(2, 6, dateKeys.length, 1).setValues(dateKeys);
+    }
+
+    try {
+        onglet.hideColumns(6);
+    } catch (e) { }
+
+    interfaceUtilisateur.alert(`✅ Optimisation terminée. ${updatedCount} ligne(s) mise(s) à jour.`);
+}
+
+
+/**
+ * ============================================================
+ *  MENU, SIDEBAR ET WEB APP
+ * ============================================================
+ */
+
+function onOpen() {
+    assurerPresenceOnglets_();
+
     SpreadsheetApp.getUi()
         .createMenu('⏱️ Minuteur')
-        .addItem('Ouvrir le suivi', 'showSidebar')
+        .addItem('Ouvrir le suivi', 'afficherBarreLaterale')
         .addSeparator()
-        .addItem('➕ Ajouter 30min à la sélection', 'addTimeToSelection')
+        .addItem('➕ Ajouter 30min à la sélection', 'ajouterTempsALaSelection')
         .addSeparator()
-        .addItem('📅 Activer le bilan par e-mail (Ven. 18h)', 'setupWeeklyTrigger')
+        .addItem('🧹 Optimiser le Journal DateKey', 'backfillJournalDateKeys')
+        .addItem('🧩 Fusionner les doublons du jour', 'dedoublonnerJournalDuJour')
+        .addSeparator()
+        .addItem('📅 Activer le bilan par e-mail Ven. 18h', 'configurerDeclencheurHebdo')
+        .addSeparator()
+        .addItem('ℹ️ À Propos', 'afficherAPropos')
         .addToUi();
-    };
+}
 
-    /**
-     * Affiche la sidebar « Traqueur de temps » dans Google Sheets.
-     *
-     * Le titre de la sidebar est localisé (FR/EN) selon la locale du compte.
-     * La largeur est fixée à 320px pour un affichage optimal.
-     */
-    const showSidebar = () => {
-    ensureSheets_();
-    const locale = getUserLocale();
-    const title = locale === 'fr' ? 'Traqueur de temps' : 'Time Tracker';
+function afficherBarreLaterale() {
+    assurerPresenceOnglets_();
+
+    const title = obtenirLangueUtilisateur() === 'fr' ? 'Traqueur de temps' : 'Time Tracker';
     const html = HtmlService.createHtmlOutputFromFile('index')
         .setTitle(title)
         .setWidth(320);
-    SpreadsheetApp.getUi().showSidebar(html);
-    };
 
-    /**
-     * Point d'entrée Web App — permet l'accès depuis un navigateur mobile.
-     *
-     * Pour déployer :
-     *   Extensions → Apps Script → Déployer → Nouvelle application web
-     *   Exécuter en tant que : Moi | Accès : Toute personne avec le lien
-     *
-     * Ajoute automatiquement la balise viewport pour le responsive mobile
-     * et autorise l'intégration dans une iframe (ALLOWALL).
-     *
-     * @param {Object} e - Événement GET (non utilisé)
-     * @return {HtmlOutput} Page HTML servie au navigateur
-     */
-    const doGet = () => {
-    ensureSheets_();
-    const locale = getUserLocale();
-    const title = locale === 'fr' ? 'Traqueur de temps' : 'Time Tracker';
+    SpreadsheetApp.getUi().showSidebar(html);
+}
+
+function afficherAPropos() {
+    const ui = SpreadsheetApp.getUi();
+    const html = HtmlService.createHtmlOutput(`
+        <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; text-align: center;">
+            <h2 style="color: #6750A4;">Traqueur de temps</h2>
+            <p>Version 2.1 - Suivi du temps de travail autonome et automatisé.</p>
+            <hr style="border: 0; height: 1px; background: #eee; margin: 20px 0;">
+            <p style="font-size: 14px; color: #555;">Développé par</p>
+            <h3 style="margin: 5px 0;">Fabrice Faucheux</h3>
+            <a href="https://faucheux.bzh" target="_blank" style="display: inline-block; margin-top: 15px; padding: 10px 20px; background-color: #6750A4; color: white; text-decoration: none; border-radius: 5px; font-weight: bold;">
+                Visiter faucheux.bzh
+            </a>
+        </div>
+    `).setWidth(350).setHeight(280);
+    ui.showModalDialog(html, 'À Propos de ce script');
+}
+
+function doGet() {
+    assurerPresenceOnglets_();
+
+    const title = obtenirLangueUtilisateur() === 'fr' ? 'Traqueur de temps' : 'Time Tracker';
+
     return HtmlService.createHtmlOutputFromFile('index')
         .setTitle(title)
         .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL)
         .addMetaTag('viewport', 'width=device-width, initial-scale=1');
-    };
+}
 
-    /**
-     * Détecte la langue de l'utilisateur à partir de la locale du Spreadsheet.
-     *
-     * Lit SpreadsheetApp.getSpreadsheetLocale() (ex: "fr_FR", "en_US") et
-     * retourne 'fr' ou 'en'. Utilisé par le frontend (index.html) pour
-     * appliquer les traductions via le dictionnaire I18N.
-     * En cas d'erreur (compte non connecté, script autonome), retourne 'fr'.
-     *
-     * @return {string} Code langue : 'fr' ou 'en'
-     */
-    const getUserLocale = () => {
+function obtenirLangueUtilisateur() {
     try {
-        const locale = Session.getActiveUser().getEmail() ? 
-        SpreadsheetApp.getActiveSpreadsheet().getSpreadsheetLocale() : 'fr_FR';
-        return locale.startsWith('fr') ? 'fr' : 'en';
+        const locale = obtenirTableur_().getSpreadsheetLocale() || 'fr_FR';
+        return String(locale).toLowerCase().startsWith('fr') ? 'fr' : 'en';
     } catch (e) {
         return 'fr';
     }
+}
+
+
+/**
+ * ============================================================
+ *  CHARGEMENT SIDEBAR
+ * ============================================================
+ */
+
+/**
+ * Appel optimisé pour une future version de index.html.
+ * Il regroupe locale, projets, tâches et historique du jour en un seul aller-retour serveur.
+ */
+function obtenirDonneesInitialesBarreLaterale() {
+    assurerPresenceOnglets_();
+
+    return {
+        locale: obtenirLangueUtilisateur(),
+        projectsAndTasks: obtenirProjetsEtTaches_(),
+        aujourdhui: obtenirSaisiesAujourdhui_()
     };
+}
 
+function obtenirProjetsEtTaches() {
+    assurerPresenceOnglets_();
+    return obtenirProjetsEtTaches_();
+}
 
-    /**
-     * ============================================================
-     *  LECTURE DONNÉES (Config & Journal)
-     * ============================================================
-     */
+function obtenirProjetsEtTaches_() {
+    const onglet = obtenirTableur_().getSheetByName(NOMS_ONGLETS.CONFIG);
+    const lastRow = onglet.getLastRow();
 
-    /**
-     * Lit la liste des projets et tâches depuis l'onglet « Config ».
-     *
-     * Appelé au démarrage de la sidebar pour alimenter les listes déroulantes.
-     * Les lignes vides (colonne Projet = "") sont filtrées automatiquement.
-     *
-     * @return {Array<Array<string>>} Tableau de paires [[projet, tâche], ...]
-     */
-    const getProjectsAndTasks = () => {
-    ensureSheets_();
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Config');
-    const lastRow = sheet.getLastRow();
     if (lastRow < 2) return [];
-    return sheet.getRange(2, 1, lastRow - 1, 2)
+
+    return onglet
+        .getRange(2, 1, lastRow - 1, 2)
         .getValues()
-        .filter(([project]) => project !== '');
-    };
+        .map(([projet, tache]) => [normaliserTexte_(projet), normaliserTexte_(tache)])
+        .filter(([projet]) => projet !== '');
+}
 
-    /**
-     * Retourne les saisies du jour courant pour l'historique de la sidebar.
-     *
-     * Filtre le Journal sur la date d'aujourd'hui et cumule les heures.
-     * Retourne aussi baseHours (objectif du jour) pour mettre à jour la jauge.
-     *
-     * @return {{ entries: Array<{project: string, task: string, hours: number}>,
-     *            totalHours: number,
-     *            baseHours: number }}
-     */
-    const getTodayEntries = () => {
-    ensureSheets_();
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Journal');
-    if (sheet.getLastRow() < 2) return { entries: [], totalHours: 0, baseHours: getBaseHoursToday_() };
+function obtenirSaisiesAujourdhui() {
+    assurerPresenceOnglets_();
+    return obtenirSaisiesAujourdhui_();
+}
 
-    const data = sheet.getDataRange().getValues();
-    const todayStr = getTodayString_();
-    const entries = [];
-    let totalHours = 0;
+function obtenirSaisiesAujourdhui_() {
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
+    const heuresDeBase = obtenirHeuresDeBaseAujourdhui_();
 
-    data.slice(1).forEach(row => {
-        if (formatDateCell_(row[0]) === todayStr) {
-        const hours = parseFloat(String(row[3]).replace(',', '.')) || 0;
-        entries.push({ project: row[1], task: row[2], hours });
-        totalHours += hours;
-        }
+    if (onglet.getLastRow() < 2) {
+        return { saisies: [], totalHeures: 0, heuresDeBase };
+    }
+
+    const rows = obtenirLignesJournalPourDate_(onglet, new Date(), fuseau);
+    const saisies = [];
+    let totalHeures = 0;
+
+    rows.forEach(({ values }) => {
+        const heures = parseFloat(values[3]) || 0;
+
+        saisies.push({
+            projet: values[1],
+            tache: values[2],
+            heures
+        });
+
+        totalHeures += heures;
     });
 
-    return { entries, totalHours, baseHours: getBaseHoursToday_() };
-    };
+    return { saisies, totalHeures, heuresDeBase };
+}
 
-    /**
-     * Calcule le cumul d'heures enregistrées dans le Journal pour une date donnée.
-     *
-     * Accepte un tableau de données déjà lu (existingData) pour éviter
-     * une double lecture du Journal dans saveTimeEntry() — optimisation importante
-     * sur les gros fichiers.
-     *
-     * @param {string} dateStr     - Date au format dd/MM/yyyy
-     * @param {Array<Array>=} existingData - Données brutes du Journal (optionnel)
-     * @return {number} Total d'heures enregistrées pour ce jour
-     * @private
-     */
-    const getTotalHoursForDay_ = (dateStr, existingData) => {
-    const data = existingData || SpreadsheetApp.getActiveSpreadsheet()
-        .getSheetByName('Journal').getDataRange().getValues();
-    return data.slice(1).reduce((total, row) => {
-        return (formatDateCell_(row[0]) === dateStr) ? total + (parseFloat(String(row[3]).replace(',', '.')) || 0) : total;
-    }, 0);
-    };
+function obtenirTotalHeuresPourJour(chaineDate) {
+    assurerPresenceOnglets_();
 
-    const getTotalHoursForDay = (dateStr) => getTotalHoursForDay_(dateStr);
+    const date = analyserChaineDateFrancaise_(chaineDate);
+    if (!date) return 0;
+
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
+    const rows = obtenirLignesJournalPourDate_(onglet, date, fuseau);
+
+    return rows.reduce((total, { values }) => total + (parseFloat(values[3]) || 0), 0);
+}
 
 
-    /**
-     * ============================================================
-     *  ÉCRITURE JOURNAL (avec Lock Service)
-     * ============================================================
-     */
+/**
+ * Lecture rapide des lignes d'une date donnée.
+ * Le Journal est supposé alimenté chronologiquement par appendRow.
+ * On lit par paquets depuis le bas pour éviter de parcourir tout l'historique.
+ */
+function obtenirLignesJournalPourDate_(onglet, dateCible, fuseau) {
+    const lastRow = onglet.getLastRow();
+    if (lastRow < 2) return [];
 
-    /**
-     * Enregistre une saisie de temps dans le Journal.
-     *
-     * Logique principale :
-     *  1. Verrou LockService pour éviter les doublons en cas de double-clic
-     *  2. Calcul de la durée disponible (baseHours - total du jour)
-     *  3. Si même Projet+Tâche existent aujourd'hui → cumul sur la ligne existante
-     *     Sinon → création d'une nouvelle ligne via appendRow()
-     *  4. Déclenchement de l'email si le seuil quotidien est atteint
-     *
-     * @param {{ project: string, task: string, duration: number }} entry
-     *   - project  : nom du projet sélectionné
-     *   - task     : nom de la tâche sélectionnée
-     *   - duration : durée en heures (peut être décimal, ex: 1.5)
-     * @return {string} Message de confirmation (✅) ou d'avertissement (⚠️/⛔)
-     */
-    const saveTimeEntry = (entry) => {
-    const lock = LockService.getScriptLock();
-    try { lock.waitLock(10000); } catch (e) {
+    const targetKey = obtenirCleDatePourDate_(dateCible, fuseau);
+    const rowsByIndex = {};
+
+    // 1. Recherche rapide via la colonne technique DateKey.
+    // C'est le chemin normal pour les nouvelles lignes.
+    try {
+        const dateKeyRange = onglet.getRange(2, 6, lastRow - 1, 1);
+        const matches = dateKeyRange
+            .createTextFinder(targetKey)
+            .matchEntireCell(true)
+            .findAll();
+
+        matches.forEach(cell => {
+            const rowIndex = cell.getRow();
+            const values = onglet
+                .getRange(rowIndex, 1, 1, ENTETES_JOURNAL.length)
+                .getValues()[0];
+
+            rowsByIndex[rowIndex] = { rowIndex, values };
+        });
+    } catch (e) {
+        // Si TextFinder échoue, le balayage de secours prend le relais.
+    }
+
+    // 2. Balayage de secours.
+    // Important : on ne s'arrête plus dès qu'on croise une date plus ancienne.
+    // Cela évite de rater une ligne si le Journal a été trié ou modifié manuellement.
+    for (let endRow = lastRow; endRow >= 2; endRow -= TAILLE_LOT_JOURNAL) {
+        const startRow = Math.max(2, endRow - TAILLE_LOT_JOURNAL + 1);
+        const height = endRow - startRow + 1;
+
+        const values = onglet
+            .getRange(startRow, 1, height, ENTETES_JOURNAL.length)
+            .getValues();
+
+        values.forEach((ligne, index) => {
+            const rowIndex = startRow + index;
+            const rowKey = normaliserTexte_(ligne[5]) || obtenirCleDateDepuisCellule_(ligne[0], fuseau);
+
+            if (rowKey === targetKey) {
+                rowsByIndex[rowIndex] = { rowIndex, values: ligne };
+            }
+        });
+    }
+
+    return Object.keys(rowsByIndex)
+        .map(Number)
+        .sort((a, b) => a - b)
+        .map(rowIndex => rowsByIndex[rowIndex]);
+}
+
+function obtenirLignesJournalEntreDates_(onglet, dateDebut, dateFin, fuseau) {
+    const lastRow = onglet.getLastRow();
+    if (lastRow < 2) return [];
+
+    const startKey = obtenirCleDatePourDate_(dateDebut, fuseau);
+    const endKey = obtenirCleDatePourDate_(dateFin, fuseau);
+    const rows = [];
+
+    let shouldContinue = true;
+
+    for (let endRow = lastRow; endRow >= 2 && shouldContinue; endRow -= TAILLE_LOT_JOURNAL) {
+        const startRow = Math.max(2, endRow - TAILLE_LOT_JOURNAL + 1);
+        const height = endRow - startRow + 1;
+        const values = onglet.getRange(startRow, 1, height, ENTETES_JOURNAL.length).getValues();
+
+        for (let i = values.length - 1; i >= 0; i--) {
+            const ligne = values[i];
+            const rowKey = normaliserTexte_(ligne[5]) || obtenirCleDateDepuisCellule_(ligne[0], fuseau);
+
+            if (rowKey >= startKey && rowKey <= endKey) {
+                rows.unshift({ rowIndex: startRow + i, values: ligne, dateKey: rowKey });
+                continue;
+            }
+
+            if (rowKey && rowKey < startKey) {
+                shouldContinue = false;
+                break;
+            }
+        }
+    }
+
+    return rows;
+}
+
+
+/**
+ * ============================================================
+ *  ÉCRITURE JOURNAL
+ * ============================================================
+ */
+
+function enregistrerSaisieTemps(saisie) {
+    const verrou = LockService.getScriptLock();
+
+    try {
+        verrou.waitLock(10000);
+    } catch (e) {
         return '❌ Système occupé, veuillez réessayer.';
     }
 
+    let message = '';
+    let emailReason = null;
+
     try {
-        ensureSheets_();
-        const ss = SpreadsheetApp.getActiveSpreadsheet();
-        const sheet = ss.getSheetByName('Journal');
-        const baseHours = getBaseHoursToday_();
+        assurerPresenceOnglets_();
 
-        const dureeDemandee = parseFloat(String(entry.duration).replace(',', '.'));
-        if (isNaN(dureeDemandee) || dureeDemandee <= 0) return '❌ Durée invalide.';
+        const tableur = obtenirTableur_();
+        const fuseau = tableur.getSpreadsheetTimeZone();
+        const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
+        const maintenant = new Date();
+        const dateDuJourStr = obtenirChaineDatePourDate_(maintenant, fuseau);
+        const todayKey = obtenirCleDatePourDate_(maintenant, fuseau);
+        const heuresDeBase = obtenirHeuresDeBaseAujourdhui_();
 
-        const todayStr = getTodayString_();
-        const data = sheet.getDataRange().getValues();
-        const totalActuel = getTotalHoursForDay_(todayStr, data);
-        const disponible = baseHours - totalActuel;
+        const projet = normaliserTexte_(saisie && saisie.projet);
+        const tache = normaliserTexte_(saisie && saisie.tache);
+        const requestedDuration = parseFloat(saisie && saisie.duree);
 
-        if (disponible <= 0) return `⛔ Limite de ${baseHours}h atteinte. Enregistrement impossible.`;
-
-        const dureeReelle = Math.min(dureeDemandee, disponible);
-        let foundRowIndex = -1;
-
-        // Normaliser les valeurs d'entrée pour comparaison robuste
-        const entryProject = String(entry.project).trim();
-        const entryTask = String(entry.task).trim();
-
-        data.forEach((row, index) => {
-        if (index === 0) return;
-        const rowDate = formatDateCell_(row[0]);
-        const rowProject = String(row[1]).trim();
-        const rowTask = String(row[2]).trim();
-        if (rowDate === todayStr && rowProject === entryProject && rowTask === entryTask) {
-            foundRowIndex = index + 1;
+        if (!projet || !tache) {
+            return '❌ Projet et tâche requis.';
         }
-        });
 
-        if (foundRowIndex !== -1) {
-        const currentHours = parseFloat(String(sheet.getRange(foundRowIndex, 4).getValue()).replace(',', '.')) || 0;
-        const newTotal = currentHours + dureeReelle;
-        sheet.getRange(foundRowIndex, 4).setValue(newTotal);
-        sheet.getRange(foundRowIndex, 5).setValue(newTotal / baseHours);
+        if (isNaN(requestedDuration) || requestedDuration <= 0) {
+            return '❌ Durée invalide.';
+        }
+
+        if (heuresDeBase <= 0) {
+            return '⛔ Aucune heure attendue pour aujourd\'hui dans l\'onglet Paramètres.';
+        }
+
+        const todayRows = obtenirLignesJournalPourDate_(onglet, maintenant, fuseau);
+        const totalBefore = todayRows.reduce((total, ligne) => total + (parseFloat(ligne.values[3]) || 0), 0);
+        const available = heuresDeBase - totalBefore;
+
+        if (available <= 0) {
+            return `⛔ Limite de ${heuresDeBase}h atteinte. Enregistrement impossible.`;
+        }
+
+        const actualDuration = Math.min(requestedDuration, available);
+        let existingRow = null;
+
+        for (let i = todayRows.length - 1; i >= 0; i--) {
+            const ligne = todayRows[i];
+            const rowProject = normaliserTexte_(ligne.values[1]);
+            const rowTask = normaliserTexte_(ligne.values[2]);
+
+            if (rowProject === projet && rowTask === tache) {
+                existingRow = ligne;
+                break;
+            }
+        }
+
+        if (existingRow) {
+            const heuresActuelles = parseFloat(existingRow.values[3]) || 0;
+            const newRowHours = heuresActuelles + actualDuration;
+
+            onglet
+                .getRange(existingRow.rowIndex, 4, 1, 3)
+                .setValues([[newRowHours, ratioSecurise_(newRowHours, heuresDeBase), todayKey]]);
         } else {
-        sheet.appendRow([new Date(), entry.project, entry.task, dureeReelle, dureeReelle / baseHours]);
+            onglet.appendRow([
+                maintenant,
+                projet,
+                tache,
+                actualDuration,
+                ratioSecurise_(actualDuration, heuresDeBase),
+                todayKey
+            ]);
         }
 
-        // Vérification seuil atteint → email
-        const newTotal = totalActuel + dureeReelle;
-        checkAndSendMail_(newTotal, baseHours, todayStr);
+        const totalAfter = totalBefore + actualDuration;
+        emailReason = reserverEmailQuotidienSiBesoin_(totalAfter, heuresDeBase, dateDuJourStr);
 
-        return (dureeReelle < dureeDemandee)
-        ? `⚠️ Limite ${baseHours}h : seulement ${dureeReelle.toFixed(2)}h ajoutées sur ${dureeDemandee.toFixed(2)}h.`
-        : `✅ ${dureeReelle.toFixed(2)}h enregistrées avec succès !`;
+        message = actualDuration < requestedDuration
+            ? `⚠️ Limite ${heuresDeBase}h : seulement ${actualDuration.toFixed(2)}h ajoutées sur ${requestedDuration.toFixed(2)}h.`
+            : `✅ ${actualDuration.toFixed(2)}h enregistrées avec succès !`;
     } finally {
-        lock.releaseLock();
-    }
-    };
-
-    /**
-     * Enregistre une saisie manuelle (onglet « Saisie » de la sidebar, sans chrono).
-     *
-     * Valide les paramètres (projet, tâche, heures dans la plage autorisée)
-     * puis délègue à saveTimeEntry() pour la logique de cumul et d'email.
-     *
-     * @param {{ project: string, task: string, hours: number }} entry
-     *   - project : nom du projet
-     *   - task    : nom de la tâche
-     *   - hours   : durée saisie manuellement (entre 0.01 et baseHours)
-     * @return {string} Message de résultat
-     */
-    const saveManualEntry = (entry) => {
-    if (!entry.project || !entry.task) return '❌ Projet et tâche requis.';
-    const hours = parseFloat(String(entry.hours).replace(',', '.'));
-    const baseHours = getBaseHoursToday_();
-    if (isNaN(hours) || hours <= 0 || hours > baseHours) {
-        return `❌ Heures invalides (entre 0.01 et ${baseHours}).`;
-    }
-    return saveTimeEntry({ project: entry.project, task: entry.task, duration: hours });
-    };
-
-
-    /**
-     * ============================================================
-     *  AJOUT MANUEL (menu Sheets)
-     * ============================================================
-     */
-
-    /**
-     * Ajoute un incrément de temps à la ligne active dans l'onglet Journal.
-     *
-     * Accessible via le menu « ⏱️ Minuteur → Ajouter 30min à la sélection ».
-     * Vérifie que l'onglet actif est bien « Journal » et que la ligne
-     * correspond à la date d'aujourd'hui (interdit de modifier le passé).
-     * Respecte le quota quotidien et déclenche l'email si le seuil est atteint.
-     *
-     * @param {number} [hoursToAdd=0.5] - Heures à ajouter (défaut : 0.5 = 30min)
-     */
-    const addTimeToSelection = (hoursToAdd = 0.5) => {
-    ensureSheets_();
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const activeSheet = ss.getActiveSheet();
-    const ui = SpreadsheetApp.getUi();
-
-    if (activeSheet.getName() !== 'Journal') {
-        return ui.alert('⚠️ Veuillez d\'abord sélectionner l\'onglet "Journal".');
+        verrou.releaseLock();
     }
 
-    const rowIndex = activeSheet.getActiveCell().getRow();
-    if (rowIndex < 2) return ui.alert('Sélectionnez une ligne de données (pas l\'en-tête).');
-
-    const [dateCell, project, task, currentHours] = activeSheet.getRange(rowIndex, 1, 1, 4).getValues()[0];
-    const todayStr = getTodayString_();
-    const rowDate = formatDateCell_(dateCell);
-
-    if (rowDate !== todayStr) return ui.alert('⛔ Modification impossible sur une date passée.');
-
-    const baseHours = getBaseHoursToday_();
-    const totalActuel = getTotalHoursForDay_(todayStr);
-    const disponible = baseHours - totalActuel;
-
-    if (disponible <= 0) return ui.alert(`⛔ Quota de ${baseHours}h déjà atteint pour aujourd'hui.`);
-
-    const finalAdd = Math.min(hoursToAdd, disponible);
-    const newTotalRow = currentHours + finalAdd;
-
-    activeSheet.getRange(rowIndex, 4).setValue(newTotalRow);
-    activeSheet.getRange(rowIndex, 5).setValue(newTotalRow / baseHours);
-
-    checkAndSendMail_(totalActuel + finalAdd, baseHours, todayStr);
-
-    if (finalAdd < hoursToAdd) {
-        ui.alert(`⚠️ Ajout limité à ${finalAdd.toFixed(2)}h pour ne pas dépasser ${baseHours}h.`);
+    if (emailReason) {
+        envoyerRapportQuotidien(emailReason);
     }
-    };
+
+    return message;
+}
+
+function enregistrerSaisieManuelle(saisie) {
+    if (!saisie || !saisie.projet || !saisie.tache) {
+        return '❌ Projet et tâche requis.';
+    }
+
+    const heures = parseFloat(saisie.heures);
+    const heuresDeBase = obtenirHeuresDeBaseAujourdhui_();
+
+    if (heuresDeBase <= 0) {
+        return '⛔ Aucune heure attendue pour aujourd\'hui dans l\'onglet Paramètres.';
+    }
+
+    if (isNaN(heures) || heures <= 0 || heures > heuresDeBase) {
+        return `❌ Heures invalides entre 0.01 et ${heuresDeBase}.`;
+    }
+
+    return enregistrerSaisieTemps({
+        projet: saisie.projet,
+        tache: saisie.tache,
+        duree: heures
+    });
+}
+
+function reserverEmailQuotidienSiBesoin_(nouveauTotal, heuresDeBase, dateDuJourStr) {
+    if (nouveauTotal < heuresDeBase) return null;
+
+    const userProps = PropertiesService.getUserProperties();
+    const key = `sent_seuil_${dateDuJourStr}`;
+
+    if (userProps.getProperty(key)) return null;
+
+    const lang = obtenirLangueUtilisateur();
+    const t = EMAIL_I18N[lang] || EMAIL_I18N.fr;
+    const motif = `${t.dailyGoalReached} (${heuresDeBase}h)`;
+
+    userProps.setProperty(key, 'true');
+    return motif;
+}
 
 
-    /**
-     * ============================================================
-     *  DICTIONNAIRE E-MAILS (I18N)
-     * ============================================================
-     */
-    const EMAIL_I18N = {
+/**
+ * ============================================================
+ *  AJOUT MANUEL DEPUIS LE MENU SHEETS
+ * ============================================================
+ */
+
+function ajouterTempsALaSelection(hoursToAdd) {
+    const increment = typeof hoursToAdd === 'number' ? hoursToAdd : 0.5;
+    const interfaceUtilisateur = SpreadsheetApp.getUi();
+    const verrou = LockService.getScriptLock();
+
+    try {
+        verrou.waitLock(10000);
+    } catch (e) {
+        interfaceUtilisateur.alert('❌ Système occupé, veuillez réessayer.');
+        return;
+    }
+
+    let alertAfterLock = null;
+    let emailReason = null;
+
+    try {
+        assurerPresenceOnglets_();
+
+        const tableur = obtenirTableur_();
+        const fuseau = tableur.getSpreadsheetTimeZone();
+        const activeSheet = tableur.getActiveSheet();
+
+        if (activeSheet.getName() !== NOMS_ONGLETS.JOURNAL) {
+            interfaceUtilisateur.alert('⚠️ Veuillez d\'abord sélectionner l\'onglet Journal.');
+            return;
+        }
+
+        const rowIndex = activeSheet.getActiveCell().getRow();
+
+        if (rowIndex < 2) {
+            interfaceUtilisateur.alert('Sélectionnez une ligne de données, pas l\'en-tête.');
+            return;
+        }
+
+        const ligne = activeSheet.getRange(rowIndex, 1, 1, ENTETES_JOURNAL.length).getValues()[0];
+        const dateDuJourStr = obtenirDateDuJourStr_();
+        const todayKey = obtenirCleAujourdhui_();
+        const dateLigne = formaterCelluleDate_(ligne[0], fuseau);
+
+        if (dateLigne !== dateDuJourStr) {
+            interfaceUtilisateur.alert('⛔ Modification impossible sur une date passée.');
+            return;
+        }
+
+        const heuresDeBase = obtenirHeuresDeBaseAujourdhui_();
+
+        if (heuresDeBase <= 0) {
+            interfaceUtilisateur.alert('⛔ Aucune heure attendue pour aujourd\'hui dans l\'onglet Paramètres.');
+            return;
+        }
+
+        const rows = obtenirLignesJournalPourDate_(activeSheet, new Date(), fuseau);
+        const totalBefore = rows.reduce((total, item) => total + (parseFloat(item.values[3]) || 0), 0);
+        const available = heuresDeBase - totalBefore;
+
+        if (available <= 0) {
+            interfaceUtilisateur.alert(`⛔ Quota de ${heuresDeBase}h déjà atteint pour aujourd'hui.`);
+            return;
+        }
+
+        const heuresActuelles = parseFloat(ligne[3]) || 0;
+        const ajoutFinal = Math.min(increment, available);
+        const newRowHours = heuresActuelles + ajoutFinal;
+
+        activeSheet
+            .getRange(rowIndex, 4, 1, 3)
+            .setValues([[newRowHours, ratioSecurise_(newRowHours, heuresDeBase), todayKey]]);
+
+        emailReason = reserverEmailQuotidienSiBesoin_(totalBefore + ajoutFinal, heuresDeBase, dateDuJourStr);
+
+        if (ajoutFinal < increment) {
+            alertAfterLock = `⚠️ Ajout limité à ${ajoutFinal.toFixed(2)}h pour ne pas dépasser ${heuresDeBase}h.`;
+        }
+    } finally {
+        verrou.releaseLock();
+    }
+
+    if (emailReason) {
+        envoyerRapportQuotidien(emailReason);
+    }
+
+    if (alertAfterLock) {
+        interfaceUtilisateur.alert(alertAfterLock);
+    }
+}
+
+
+/**
+ * ============================================================
+ *  DICTIONNAIRE E-MAILS I18N
+ * ============================================================
+ */
+
+const EMAIL_I18N = {
     fr: {
-        dailyGoalReached: "Objectif du jour atteint",
-        dailySubject: "📊 Ventilation suivi des temps",
-        dailyTitle: "Ventilation de votre temps",
-        dailyStatus: "Statut",
-        dailyTotal: "Total à saisir",
-        dailyDay: "jour",
-        dailyBase: "base",
-        dailyDetails: "Détails",
-        dailyFooter: "Généré automatiquement via Apps Script .",
-        weeklySubject: "📊 Bilan Hebdo Tracker Time",
-        weeklyTitle: "Bilan Hebdomadaire Tracker Time",
-        weeklyWeek: "Semaine",
-        weeklyTotal: "Total de la semaine",
-        weeklyEquivalent: "soit environ",
-        weeklyDays: "jours",
-        weeklyGoal: "Objectif de la semaine",
-        weeklyDetails: "Détails par jour",
-        weeklyFooter: "Tracker Time — Rapport généré automatiquement en fin de semaine."
+        dailyGoalReached: 'Objectif du jour atteint',
+        dailySubject: '📊 Ventilation suivi des temps',
+        dailyTitle: 'Ventilation de votre temps',
+        dailyStatus: 'Statut',
+        dailyTotal: 'Total à saisir',
+        dailyDay: 'jour',
+        dailyBase: 'base',
+        dailyDetails: 'Détails',
+        dailyFooter: 'Généré automatiquement via Apps Script.',
+        weeklySubject: '📊 Bilan Hebdo Tracker Time',
+        weeklyTitle: 'Bilan Hebdomadaire Tracker Time',
+        weeklyWeek: 'Semaine',
+        weeklyTotal: 'Total de la semaine',
+        weeklyEquivalent: 'soit environ',
+        weeklyDays: 'jours',
+        weeklyGoal: 'Objectif de la semaine',
+        weeklyDetails: 'Détails par jour',
+        weeklyFooter: 'Tracker Time - Rapport généré automatiquement en fin de semaine.'
     },
     en: {
-        dailyGoalReached: "Daily goal reached",
-        dailySubject: "📊 Time Tracking Breakdown",
-        dailyTitle: "Your Time Breakdown",
-        dailyStatus: "Status",
-        dailyTotal: "Total to log",
-        dailyDay: "day",
-        dailyBase: "base",
-        dailyDetails: "Details",
-        dailyFooter: "Automatically generated via Apps Script .",
-        weeklySubject: "📊 Tracker Time Weekly Report",
-        weeklyTitle: "Tracker Time Weekly Report",
-        weeklyWeek: "Week",
-        weeklyTotal: "Weekly Total",
-        weeklyEquivalent: "approximately",
-        weeklyDays: "days",
-        weeklyGoal: "Weekly Goal",
-        weeklyDetails: "Daily Details",
-        weeklyFooter: "Tracker Time — Automatically generated weekly report."
+        dailyGoalReached: 'Daily goal reached',
+        dailySubject: '📊 Time Tracking Breakdown',
+        dailyTitle: 'Your Time Breakdown',
+        dailyStatus: 'Status',
+        dailyTotal: 'Total to log',
+        dailyDay: 'day',
+        dailyBase: 'base',
+        dailyDetails: 'Details',
+        dailyFooter: 'Automatically generated via Apps Script.',
+        weeklySubject: '📊 Tracker Time Weekly Report',
+        weeklyTitle: 'Tracker Time Weekly Report',
+        weeklyWeek: 'Week',
+        weeklyTotal: 'Weekly Total',
+        weeklyEquivalent: 'approximately',
+        weeklyDays: 'jours',
+        weeklyGoal: 'Weekly Goal',
+        weeklyDetails: 'Daily Details',
+        weeklyFooter: 'Tracker Time - Automatically generated weekly report.'
     }
-    };
+};
 
-    /**
-     * ============================================================
-     *  EMAIL — Envoi uniquement quand le seuil du jour est atteint
-     * ============================================================
-     */
 
-    /**
-     * Vérifie si le total du jour atteint l'objectif et envoie le rapport e-mail.
-     *
-     * La clé « sent_seuil_dd/MM/yyyy » est stockée dans UserProperties pour
-     * garantir qu'un seul email est envoyé par jour, même si plusieurs saisies
-     * franchissent le seuil consécutivement.
-     *
-     * @param {number} newTotal   - Total d'heures après la dernière saisie
-     * @param {number} baseHours  - Objectif quotidien en heures
-     * @param {string} todayStr   - Date du jour au format dd/MM/yyyy
-     * @private
-     */
-    const checkAndSendMail_ = (newTotal, baseHours, todayStr) => {
-    const userProps = PropertiesService.getUserProperties();
-    const key = `sent_seuil_${todayStr}`;
-    if (newTotal >= baseHours && !userProps.getProperty(key)) {
-        const lang = getUserLocale();
-        const t = EMAIL_I18N[lang] || EMAIL_I18N.fr;
-        sendDailyReport(`${t.dailyGoalReached} (${baseHours}h)`);
-        userProps.setProperty(key, 'true');
-    }
-    };
+/**
+ * ============================================================
+ *  E-MAIL QUOTIDIEN
+ * ============================================================
+ */
 
-    /**
-     * Génère et envoie le rapport de ventilation journalière par e-mail.
-     *
-     * Lit toutes les lignes du Journal correspondant à aujourd'hui,
-     * agrège les heures par couple Projet-Tâche, calcule le total en jours
-     * (sur la base du jour en cours) et envoie un e-mail HTML formaté
-     * à l'adresse du compte Google actif.
-     *
-     * @param {string} [reason]
-     *   Motif affiché dans le badge de statut de l'e-mail
-     */
-    const sendDailyReport = (reason) => {
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Journal');
-    if (!sheet) return;
+function envoyerRapportQuotidien(motif) {
+    const tableur = obtenirTableur_();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
 
-    const data = sheet.getDataRange().getValues();
-    const now = new Date();
-    const tz = ss.getSpreadsheetTimeZone();
-    const todayStr = Utilities.formatDate(now, tz, 'dd/MM/yyyy');
-    const baseHours = getBaseHoursToday_();
+    if (!onglet || onglet.getLastRow() < 2) return;
 
-    const lang = getUserLocale();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const maintenant = new Date();
+    const dateDuJourStr = obtenirChaineDatePourDate_(maintenant, fuseau);
+    const heuresDeBase = obtenirHeuresDeBaseAujourdhui_();
+
+    if (heuresDeBase <= 0) return;
+
+    const lang = obtenirLangueUtilisateur();
     const t = EMAIL_I18N[lang] || EMAIL_I18N.fr;
-    const safeReason = reason || t.dailyGoalReached;
+    const safeReason = motif || t.dailyGoalReached;
+    const rows = obtenirLignesJournalPourDate_(onglet, maintenant, fuseau);
 
-    const { summary, totalHours } = data.slice(1).reduce((acc, row) => {
-        const [date, project, task, hours] = row;
-        if (formatDateCell_(date) === todayStr) {
-        const key = `${project} - ${task}`;
-        acc.summary[key] = (acc.summary[key] || 0) + (parseFloat(String(hours).replace(',', '.')) || 0);
-        acc.totalHours += (parseFloat(String(hours).replace(',', '.')) || 0);
-        }
-        return acc;
-    }, { summary: {}, totalHours: 0 });
+    const resume = {};
+    let totalHeures = 0;
 
-    if (totalHours === 0) return;
+    rows.forEach(({ values }) => {
+        const projet = values[1];
+        const tache = values[2];
+        const heures = parseFloat(values[3]) || 0;
+        const key = `${projet} - ${tache}`;
 
-    const totalInDays = (totalHours / baseHours).toFixed(2);
-    const rowsHtml = Object.entries(summary).map(([key, val]) => `
-        <tr>
-        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#555">${key}</td>
-        <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:500;color:#1a73e8">${(val / baseHours).toFixed(2)} ${t.dailyDay}</td>
-        </tr>`).join('');
+        resume[key] = (resume[key] || 0) + heures;
+        totalHeures += heures;
+    });
 
-    const emailHtml = `
-        <div style="background:#f8f9fa;padding:20px;font-family:'Roboto',Arial,sans-serif;color:#3c4043">
-        <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.1);border:1px solid #dadce0">
-            <div style="background:#1a73e8;padding:24px;color:#fff">
-            <h2 style="margin:0;font-size:20px;font-weight:400">${t.dailyTitle}</h2>
-            <p style="margin:4px 0 0;opacity:.9;font-size:14px">${todayStr}</p>
-            </div>
-            <div style="padding:24px">
-            <div style="margin-bottom:24px">
-                <span style="font-size:12px;color:#70757a;text-transform:uppercase;letter-spacing:.8px;font-weight:700">${t.dailyStatus}</span><br>
-                <span style="display:inline-block;margin-top:4px;font-size:13px;font-weight:500;color:#1e8e3e;background:#e6f4ea;padding:4px 12px;border-radius:16px">${safeReason}</span>
-            </div>
-            <div style="margin-bottom:32px;background:#f8f9fa;padding:16px;border-radius:8px;border-left:4px solid #1a73e8">
-                <p style="margin:0;font-size:14px;color:#70757a">${t.dailyTotal}</p>
-                <h1 style="margin:0;font-size:48px;color:#1a73e8;font-weight:300">${totalInDays} <span style="font-size:20px">${t.dailyDay}</span></h1>
-                <p style="margin:0;font-size:11px;color:#9aa0a6">${totalHours.toFixed(2)}h (${t.dailyBase} ${baseHours}h/j)</p>
-            </div>
-            <h3 style="font-size:13px;color:#3c4043;font-weight:700;text-transform:uppercase;margin-bottom:12px">${t.dailyDetails}</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:14px">${rowsHtml}</table>
-            </div>
-            <div style="background:#f1f3f4;padding:16px;text-align:center;font-size:11px;color:#70757a">
-            ${t.dailyFooter}
-            </div>
+    if (totalHeures === 0) return;
+
+    const totalInDays = (totalHeures / heuresDeBase).toFixed(2);
+    const lignesHtml = Object.saisies(resume).map(([key, valeur]) => `
+    <tr>
+      <td style="padding:12px 0;border-bottom:1px solid #eee;color:#555">${key}</td>
+      <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:500;color:#1a73e8">${(valeur / heuresDeBase).toFixed(2)} ${t.dailyDay}</td>
+    </tr>`).join('');
+
+    const htmlEmail = `
+    <div style="background:#f8f9fa;padding:20px;font-family:'Roboto',Arial,sans-serif;color:#3c4043">
+      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.1);border:1px solid #dadce0">
+        <div style="background:#1a73e8;padding:24px;color:#fff">
+          <h2 style="margin:0;font-size:20px;font-weight:400">${t.dailyTitle}</h2>
+          <p style="margin:4px 0 0;opacity:.9;font-size:14px">${dateDuJourStr}</p>
         </div>
-        </div>`;
+        <div style="padding:24px">
+          <div style="margin-bottom:24px">
+            <span style="font-size:12px;color:#70757a;text-transform:uppercase;letter-spacing:.8px;font-weight:700">${t.dailyStatus}</span><br>
+            <span style="display:inline-block;margin-top:4px;font-size:13px;font-weight:500;color:#1e8e3e;background:#e6f4ea;padding:4px 12px;border-radius:16px">${safeReason}</span>
+          </div>
+          <div style="margin-bottom:32px;background:#f8f9fa;padding:16px;border-radius:8px;border-left:4px solid #1a73e8">
+            <p style="margin:0;font-size:14px;color:#70757a">${t.dailyTotal}</p>
+            <h1 style="margin:0;font-size:48px;color:#1a73e8;font-weight:300">${totalInDays} <span style="font-size:20px">${t.dailyDay}</span></h1>
+            <p style="margin:0;font-size:11px;color:#9aa0a6">${totalHeures.toFixed(2)}h (${t.dailyBase} ${heuresDeBase}h/j)</p>
+          </div>
+          <h3 style="font-size:13px;color:#3c4043;font-weight:700;text-transform:uppercase;margin-bottom:12px">${t.dailyDetails}</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:14px">${lignesHtml}</table>
+        </div>
+        <div style="background:#f1f3f4;padding:16px;text-align:center;font-size:11px;color:#70757a">
+          ${t.dailyFooter}
+        </div>
+      </div>
+    </div>`;
 
     MailApp.sendEmail({
         to: Session.getActiveUser().getEmail(),
-        subject: `${t.dailySubject} — ${Utilities.formatDate(now, tz, 'dd/MM/yyyy')}`,
-        htmlBody: emailHtml
+        subject: `${t.dailySubject} - ${dateDuJourStr}`,
+        htmlBody: htmlEmail
     });
-    };
+}
 
 
-    /**
-     * ============================================================
-     *  RAPPORT HEBDOMADAIRE
-     * ============================================================
-     */
+/**
+ * ============================================================
+ *  RAPPORT HEBDOMADAIRE
+ * ============================================================
+ */
 
-    /**
-     * Génère les données du rapport hebdomadaire (lundi au dimanche en cours).
-     *
-     * Retourne un objet indexé par clé « Lun 28/04 » (ou « Mon 28/04 » en EN)
-     * contenant pour chaque jour : les saisies détaillées, le total d'heures
-     * et la base horaire configurée (issue de l'onglet Paramètres).
-     *
-     * Les noms de jours sont localisés via le paramètre lang car
-     * Utilities.formatDate('EEE') renvoie systématiquement l'anglais.
-     *
-     * @param {string} [lang='fr'] - Locale transmise par le client ('fr' ou 'en')
-     * @return {{ days: Object<string, {entries: Array, total: number, baseHours: number}>,
-     *            weekTotal: number }}
-     */
-    const getWeeklyReport = (lang) => {
-    ensureSheets_();
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const sheet = ss.getSheetByName('Journal');
-    if (sheet.getLastRow() < 2) return { days: {}, weekTotal: 0 };
+function obtenirRapportHebdomadaire(lang) {
+    assurerPresenceOnglets_();
 
-    const tz = ss.getSpreadsheetTimeZone();
-    const now = new Date();
-    const dow = now.getDay();
-    const mondayOff = dow === 0 ? -6 : 1 - dow;
-    const monday = new Date(now); monday.setDate(now.getDate() + mondayOff); monday.setHours(0,0,0,0);
-    const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6); sunday.setHours(23,59,59,999);
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
 
-    // Noms de jours localisés (lun→dim) — Utilities.formatDate('EEE') renvoie l'anglais par défaut
+    if (onglet.getLastRow() < 2) return { jours: {}, totalSemaine: 0 };
+
+    const maintenant = new Date();
+    const jourSemaine = maintenant.getDay();
+    const mondayOffset = jourSemaine === 0 ? -6 : 1 - jourSemaine;
+    const lundi = new Date(maintenant);
+    lundi.setDate(maintenant.getDate() + mondayOffset);
+    lundi.setHours(0, 0, 0, 0);
+
+    const dimanche = new Date(lundi);
+    dimanche.setDate(lundi.getDate() + 6);
+    dimanche.setHours(23, 59, 59, 999);
+
     const DAY_NAMES = {
         fr: ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'],
         en: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
     };
+
     const dayNames = DAY_NAMES[lang] || DAY_NAMES.fr;
+    const carteHeuresBase = obtenirCarteHeuresDeBase_();
+    const jours = {};
+    let totalSemaine = 0;
 
-    /**
-     * Construit la clé lisible d'un jour : "Lun 28/04"
-     * @param {Date} d
-     * @return {string}
-     */
-    const buildKey = (d) => {
-        const dayName = dayNames[d.getDay()];
-        const dateStr = Utilities.formatDate(d, tz, 'dd/MM');
-        return `${dayName} ${dateStr}`;
-    };
-
-    const data = sheet.getDataRange().getValues();
-    const days = {};
-    let weekTotal = 0;
-
-    for (let i = 0; i < 7; i++) {
-        const d = new Date(monday); d.setDate(monday.getDate() + i);
-        const bh = getBaseHoursForDate_(d);
-        days[buildKey(d)] = { entries: [], total: 0, baseHours: bh };
+    function buildKey(d) {
+        const nomJour = dayNames[d.getDay()];
+        const chaineDate = Utilities.formatDate(d, fuseau, 'dd/MM');
+        return `${nomJour} ${chaineDate}`;
     }
 
-    data.slice(1).forEach(row => {
-        const cd = row[0];
-        if (!(cd instanceof Date) || cd < monday || cd > sunday) return;
-        const dk = buildKey(cd);
-        const h = parseFloat(String(row[3]).replace(',', '.')) || 0;
-        if (days[dk]) {
-        days[dk].entries.push({ project: row[1], task: row[2], hours: h });
-        days[dk].total += h;
-        weekTotal += h;
+    for (let i = 0; i < 7; i++) {
+        const d = new Date(lundi);
+        d.setDate(lundi.getDate() + i);
+
+        jours[buildKey(d)] = {
+            saisies: [],
+            total: 0,
+            heuresDeBase: obtenirHeuresDeBasePourDateDepuisCarte_(d, carteHeuresBase, fuseau)
+        };
+    }
+
+    const rows = obtenirLignesJournalEntreDates_(onglet, lundi, dimanche, fuseau);
+
+    rows.forEach(({ values }) => {
+        const dateCell = values[0];
+        const date = dateCell instanceof Date ? dateCell : analyserChaineDateFrancaise_(formaterCelluleDate_(dateCell, fuseau));
+
+        if (!date) return;
+
+        const cleJour = buildKey(date);
+        const heures = parseFloat(values[3]) || 0;
+
+        if (!jours[cleJour]) return;
+
+        jours[cleJour].saisies.push({
+            projet: values[1],
+            tache: values[2],
+            heures
+        });
+
+        jours[cleJour].total += heures;
+        totalSemaine += heures;
+    });
+
+    return { jours, totalSemaine };
+}
+
+function configurerDeclencheurHebdo() {
+    const interfaceUtilisateur = SpreadsheetApp.getUi();
+    const triggers = ScriptApp.getProjectTriggers();
+    
+    // Purger les anciens déclencheurs pour éviter les doublons ou appels morts
+    let existantTrouve = false;
+    triggers.forEach(declencheur => {
+        const nomGestionnaire = declencheur.getHandlerFunction();
+        if (nomGestionnaire === 'envoyerEmailHebdo' || nomGestionnaire === 'sendWeeklyEmail') {
+            if (nomGestionnaire === 'envoyerEmailHebdo') {
+                existantTrouve = true;
+            } else {
+                ScriptApp.deleteTrigger(declencheur);
+            }
         }
     });
 
-    return { days, weekTotal };
-    };
-
-    /**
-     * ============================================================
-     *  EMAIL HEBDOMADAIRE AUTOMATIQUE
-     * ============================================================
-     */
-
-    /**
-     * Installe un déclencheur automatique (trigger) pour l'e-mail hebdomadaire.
-     * S'exécutera tous les vendredis vers 18h.
-     */
-    const setupWeeklyTrigger = () => {
-    const ui = SpreadsheetApp.getUi();
-    const triggers = ScriptApp.getProjectTriggers();
-    const existing = triggers.find(t => t.getHandlerFunction() === 'sendWeeklyEmail');
-    
-    if (existing) {
-        ui.alert('ℹ️ Le rapport hebdomadaire automatique est déjà activé (Vendredi à 18h).');
+    if (existantTrouve) {
+        interfaceUtilisateur.alert('ℹ️ Le rapport hebdomadaire automatique est déjà activé vendredi à 18h.');
         return;
     }
-    
-    try {
-        ScriptApp.newTrigger('sendWeeklyEmail')
-        .timeBased()
-        .onWeekDay(ScriptApp.WeekDay.FRIDAY)
-        .atHour(18)
-        .create();
-        ui.alert('✅ Rapport hebdomadaire activé !\n\nVous recevrez désormais un bilan détaillé par e-mail tous les vendredis vers 18h00.');
-    } catch (e) {
-        ui.alert("❌ Erreur lors de l'activation. Veuillez vous assurer d'avoir accepté les autorisations Google. Détail : " + e.message);
-    }
-    };
 
-    /**
-     * Génère et envoie le rapport hebdomadaire par e-mail.
-     * Destiné à être appelé par le déclencheur (trigger) le vendredi soir.
-     */
-    const sendWeeklyEmail = () => {
-    const lang = getUserLocale();
+    try {
+        ScriptApp.newTrigger('envoyerEmailHebdo')
+            .timeBased()
+            .onWeekDay(ScriptApp.WeekDay.FRIDAY)
+            .atHour(18)
+            .create();
+
+        interfaceUtilisateur.alert('✅ Rapport hebdomadaire activé. Vous recevrez un bilan détaillé par e-mail tous les vendredis vers 18h00.');
+    } catch (e) {
+        interfaceUtilisateur.alert('❌ Erreur lors de l\'activation. Veuillez vérifier les autorisations Google. Détail : ' + e.message);
+    }
+}
+
+function envoyerEmailHebdo() {
+    const lang = obtenirLangueUtilisateur();
     const t = EMAIL_I18N[lang] || EMAIL_I18N.fr;
-    const report = getWeeklyReport(lang);
-    
-    if (report.weekTotal === 0) return; // Ne rien envoyer si semaine vide
-    
-    const ss = SpreadsheetApp.getActiveSpreadsheet();
-    const tz = ss.getSpreadsheetTimeZone();
-    const now = new Date();
-    const weekNumber = Utilities.formatDate(now, tz, 'w');
-    
+    const report = obtenirRapportHebdomadaire(lang);
+
+    if (report.totalSemaine === 0) return;
+
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const maintenant = new Date();
+    const numeroSemaine = Utilities.formatDate(maintenant, fuseau, 'w');
+
     let totalBase = 0;
-    let rowsHtml = '';
-    
-    Object.entries(report.days).forEach(([dayName, data]) => {
-        totalBase += data.baseHours;
-        const isOff = data.baseHours === 0;
-        const pct = isOff ? 0 : Math.round((data.total / data.baseHours) * 100);
+    let lignesHtml = '';
+
+    Object.saisies(report.jours).forEach(([nomJour, donnees]) => {
+        totalBase += donnees.heuresDeBase;
+
+        const isOff = donnees.heuresDeBase === 0;
+        const pct = isOff ? 0 : Math.round((donnees.total / donnees.heuresDeBase) * 100);
         const color = pct >= 100 ? '#1e8e3e' : (pct >= 75 ? '#e8a317' : '#70757a');
-        
-        rowsHtml += `
+
+        lignesHtml += `
+      <tr>
+        <td style="padding:12px 0;border-bottom:1px solid #eee;color:#3c4043;font-weight:500;">
+          ${nomJour} <span style="font-size:11px;color:#9aa0a6;font-weight:normal">(${donnees.heuresDeBase}h)</span>
+        </td>
+        <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:bold;color:${color}">
+          ${donnees.total.toFixed(2)}h
+        </td>
+      </tr>`;
+
+        donnees.saisies.forEach(saisie => {
+            lignesHtml += `
         <tr>
-            <td style="padding:12px 0;border-bottom:1px solid #eee;color:#3c4043;font-weight:500;">
-            ${dayName} <span style="font-size:11px;color:#9aa0a6;font-weight:normal">(${data.baseHours}h)</span>
-            </td>
-            <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:bold;color:${color}">
-            ${data.total.toFixed(2)}h
-            </td>
+          <td colspan="2" style="padding:4px 0 4px 16px;border-bottom:1px solid #f8f9fa;font-size:12px;color:#555;">
+            <span style="color:#6750A4">▪</span> ${saisie.projet} - ${saisie.tache} <span style="float:right;color:#70757a">${saisie.heures.toFixed(2)}h</span>
+          </td>
         </tr>`;
-        
-        if (data.entries.length > 0) {
-        data.entries.forEach(e => {
-            rowsHtml += `
-            <tr>
-                <td colspan="2" style="padding:4px 0 4px 16px;border-bottom:1px solid #f8f9fa;font-size:12px;color:#555;">
-                <span style="color:#6750A4">▪</span> ${e.project} — ${e.task} <span style="float:right;color:#70757a">${e.hours.toFixed(2)}h</span>
-                </td>
-            </tr>`;
         });
-        }
     });
 
     const avgBase = totalBase > 0 ? totalBase : 40;
-    const daysEquivalent = (report.weekTotal / (avgBase / 5)).toFixed(2);
+    const equivalentJours = (report.totalSemaine / (avgBase / 5)).toFixed(2);
 
-    const emailHtml = `
-        <div style="background:#f8f9fa;padding:20px;font-family:'Inter','Roboto',Arial,sans-serif;color:#3c4043">
-        <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.05);border:1px solid #dadce0">
-            <div style="background:#6750A4;padding:24px;color:#fff;text-align:center;">
-            <h2 style="margin:0;font-size:22px;font-weight:500">${t.weeklyTitle}</h2>
-            <p style="margin:4px 0 0;opacity:.9;font-size:14px">${t.weeklyWeek} ${weekNumber}</p>
-            </div>
-            <div style="padding:24px">
-            <div style="margin-bottom:32px;background:#f5f0fa;padding:20px;border-radius:8px;text-align:center;border:1px solid #eaddff">
-                <p style="margin:0;font-size:14px;color:#6750A4;font-weight:600;text-transform:uppercase;letter-spacing:1px">${t.weeklyTotal}</p>
-                <h1 style="margin:10px 0;font-size:42px;color:#1C1B1F;font-weight:300">${report.weekTotal.toFixed(2)}h</h1>
-                <p style="margin:0;font-size:13px;color:#79747E">${t.weeklyEquivalent} <strong>${daysEquivalent} ${t.weeklyDays}</strong> (${t.weeklyGoal} : ${totalBase}h)</p>
-            </div>
-            
-            <h3 style="font-size:13px;color:#3c4043;font-weight:700;text-transform:uppercase;margin-bottom:12px">${t.weeklyDetails}</h3>
-            <table style="width:100%;border-collapse:collapse;font-size:14px">${rowsHtml}</table>
-            </div>
-            <div style="background:#f1f3f4;padding:16px;text-align:center;font-size:11px;color:#70757a">
-            ${t.weeklyFooter}
-            </div>
+    const htmlEmail = `
+    <div style="background:#f8f9fa;padding:20px;font-family:'Inter','Roboto',Arial,sans-serif;color:#3c4043">
+      <div style="max-width:600px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 4px 10px rgba(0,0,0,.05);border:1px solid #dadce0">
+        <div style="background:#6750A4;padding:24px;color:#fff;text-align:center;">
+          <h2 style="margin:0;font-size:22px;font-weight:500">${t.weeklyTitle}</h2>
+          <p style="margin:4px 0 0;opacity:.9;font-size:14px">${t.weeklyWeek} ${numeroSemaine}</p>
         </div>
-        </div>`;
+        <div style="padding:24px">
+          <div style="margin-bottom:32px;background:#f5f0fa;padding:20px;border-radius:8px;text-align:center;border:1px solid #eaddff">
+            <p style="margin:0;font-size:14px;color:#6750A4;font-weight:600;text-transform:uppercase;letter-spacing:1px">${t.weeklyTotal}</p>
+            <h1 style="margin:10px 0;font-size:42px;color:#1C1B1F;font-weight:300">${report.totalSemaine.toFixed(2)}h</h1>
+            <p style="margin:0;font-size:13px;color:#79747E">${t.weeklyEquivalent} <strong>${equivalentJours} ${t.weeklyDays}</strong> (${t.weeklyGoal} : ${totalBase}h)</p>
+          </div>
+
+          <h3 style="font-size:13px;color:#3c4043;font-weight:700;text-transform:uppercase;margin-bottom:12px">${t.weeklyDetails}</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:14px">${lignesHtml}</table>
+        </div>
+        <div style="background:#f1f3f4;padding:16px;text-align:center;font-size:11px;color:#70757a">
+          ${t.weeklyFooter}
+        </div>
+      </div>
+    </div>`;
 
     MailApp.sendEmail({
         to: Session.getActiveUser().getEmail(),
-        subject: `${t.weeklySubject} (S${weekNumber}) — ${report.weekTotal.toFixed(2)}h`,
-        htmlBody: emailHtml
+        subject: `${t.weeklySubject} S${numeroSemaine} - ${report.totalSemaine.toFixed(2)}h`,
+        htmlBody: htmlEmail
     });
-    };
+}
+
+function dedoublonnerJournalDuJour() {
+    assurerPresenceOnglets_();
+
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
+    const maintenant = new Date();
+    const todayKey = obtenirCleDatePourDate_(maintenant, fuseau);
+    const heuresDeBase = obtenirHeuresDeBaseAujourdhui_();
+
+    if (onglet.getLastRow() < 2) return;
+
+    const todayRows = obtenirLignesJournalPourDate_(onglet, maintenant, fuseau);
+    const groups = {};
+
+    todayRows.forEach(ligne => {
+        const projet = normaliserTexte_(ligne.values[1]);
+        const tache = normaliserTexte_(ligne.values[2]);
+
+        const key = [
+            normaliserTexteComparaison_(projet),
+            normaliserTexteComparaison_(tache)
+        ].join('||');
+
+        if (!groups[key]) {
+            groups[key] = {
+                projet,
+                tache,
+                rows: [],
+                totalHeures: 0
+            };
+        }
+
+        groups[key].rows.push(ligne);
+        groups[key].totalHeures += parseFloat(ligne.values[3]) || 0;
+    });
+
+    Object.values(groups).forEach(group => {
+        if (group.rows.length <= 1) return;
+
+        const rowsSorted = group.rows.sort((a, b) => a.rowIndex - b.rowIndex);
+        const rowToKeep = rowsSorted[0];
+        const rowsToDelete = rowsSorted.slice(1);
+
+        onglet
+            .getRange(rowToKeep.rowIndex, 2, 1, 5)
+            .setValues([[
+                group.projet,
+                group.tache,
+                group.totalHeures,
+                ratioSecurise_(group.totalHeures, heuresDeBase),
+                todayKey
+            ]]);
+
+        rowsToDelete
+            .map(ligne => ligne.rowIndex)
+            .sort((a, b) => b - a)
+            .forEach(rowIndex => onglet.deleteRow(rowIndex));
+    });
+
+    SpreadsheetApp.getUi().alert('✅ Doublons du jour fusionnés.');
+}
