@@ -1,8 +1,8 @@
-# ⏱️ Tracker Time — Suivi du temps Google Sheets (v2.0)
+# ⏱️ Tracker Time — Suivi du temps Google Sheets (v2.1)
 
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white)](https://developers.google.com/apps-script)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
+[![Version](https://img.shields.io/badge/version-2.1-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
 [![Website](https://img.shields.io/badge/Website-faucheux.bzh-0052cc?style=for-the-badge)](https://faucheux.bzh)
 
 **Tracker Time** est une solution complète, sécurisée et intégrée pour Google Sheets permettant de chronométrer vos tâches professionnelles en temps réel. Conçu pour simplifier la saisie des feuilles de temps (type Planview), il automatise la ventilation des heures par projet, s'adapte à vos horaires quotidiens, et vous notifie automatiquement lorsque votre journée de travail est terminée.
@@ -22,7 +22,8 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 ### ⚙️ Automatisation & personnalisation
 * **Auto-configuration** : Les onglets nécessaires (`Config`, `Journal`, `Paramètres`) sont créés automatiquement s'ils n'existent pas lors du premier lancement.
 * **Horaires dynamiques** : Définissez un nombre d'heures cible différent pour chaque jour de la semaine (ex: 8h du Lundi au Jeudi, 7h le Vendredi).
-* **Rapports automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* de façon automatique dès que votre quota d'heures du jour est atteint.
+* **Rapports automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* de façon automatique dès que votre quota d'heures du jour est atteint. Un bilan hebdomadaire est également envoyé le vendredi.
+* **Format numérique intelligent** : Support natif de la virgule (ex: `1,5`) pour la saisie manuelle et les données Sheets.
 
 ### 🖥️ Expérience utilisateur (UX)
 * **Jauge de progression** : Visualisation claire et en temps réel de votre avancement quotidien via une jauge circulaire SVG dynamique.
@@ -32,6 +33,8 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 * **Bilingue (i18n)** : L'interface s'affiche automatiquement en Français ou en Anglais selon les paramètres régionaux de votre compte Google.
 
 ### 🔒 Robustesse & sécurité
+* **Code entièrement francisé** : Structure du code, variables et fonctions sont à 100% en français pour une maintenance locale facilitée.
+* **Menu À Propos** : Accédez facilement aux informations de la version et aux coordonnées du développeur depuis le menu de l'extension.
 * **Protection XSS** : Toutes les entrées et listes déroulantes sont assainies pour prévenir les failles de sécurité.
 * **Persistance (LocalStorage)** : Votre chronomètre continue de tourner en arrière-plan et survit aux rafraîchissements de la page.
 * **Gestion de la concurrence** : Utilisation du `LockService` de Google pour garantir l'intégrité des données si plusieurs requêtes sont lancées simultanément.
@@ -85,11 +88,11 @@ Ce projet est sous licence **MIT**. Voir le fichier [LICENSE](LICENSE) pour plus
 ---
 ---
 
-# ⏱️ Tracker Time — Google Sheets Time Tracker (v2.0)
+# ⏱️ Tracker Time — Google Sheets Time Tracker (v2.1)
 
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white)](https://developers.google.com/apps-script)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.0-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
+[![Version](https://img.shields.io/badge/version-2.1-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
 [![Website](https://img.shields.io/badge/Website-faucheux.bzh-0052cc?style=for-the-badge)](https://faucheux.bzh)
 
 **Tracker Time** is a comprehensive, secure, and integrated solution for Google Sheets to track your professional tasks in real-time. Designed to simplify timesheet entries, it automates hour breakdown by project, adapts to your daily schedules, and automatically notifies you when your workday goal is met.
