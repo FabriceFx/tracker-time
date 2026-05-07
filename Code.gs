@@ -997,50 +997,49 @@ function obtenirRapportHebdomadaire(lang) {
 
     const dayNames = DAY_NAMES[lang] || DAY_NAMES.fr;
     const carteHeuresBase = obtenirCarteHeuresDeBase_();
-    const jours = {};
+    const joursInternes = {};
+    const joursResultat = {};
     let totalSemaine = 0;
-
-    function buildKey(d) {
-        const nomJour = dayNames[d.getDay()];
-        const chaineDate = Utilities.formatDate(d, fuseau, 'dd/MM');
-        return `${nomJour} ${chaineDate}`;
-    }
 
     for (let i = 0; i < 7; i++) {
         const d = new Date(lundi);
         d.setDate(lundi.getDate() + i);
 
-        jours[buildKey(d)] = {
+        const key = Utilities.formatDate(d, fuseau, 'yyyy-MM-dd');
+        const nomJour = dayNames[d.getDay()];
+        const chaineDate = Utilities.formatDate(d, fuseau, 'dd/MM');
+        const displayKey = `${nomJour} ${chaineDate}`;
+
+        joursInternes[key] = {
             saisies: [],
             total: 0,
             heuresDeBase: obtenirHeuresDeBasePourDateDepuisCarte_(d, carteHeuresBase, fuseau)
         };
+        // Conserver l'ordre exact d'affichage (du lundi au dimanche)
+        joursResultat[displayKey] = joursInternes[key];
     }
 
     const rows = obtenirLignesJournalEntreDates_(onglet, lundi, dimanche, fuseau);
 
-    rows.forEach(({ values }) => {
-        const dateCell = values[0];
-        const date = dateCell instanceof Date ? dateCell : analyserChaineDateFrancaise_(formaterCelluleDate_(dateCell, fuseau));
+    rows.forEach(({ values, dateKey }) => {
+        // Utilisation robuste de DateKey (yyyy-MM-dd) pour s'affranchir des problèmes de fuseau horaire
+        const key = dateKey || obtenirCleDateDepuisCellule_(values[0], fuseau);
+        
+        if (!key || !joursInternes[key]) return;
 
-        if (!date) return;
-
-        const cleJour = buildKey(date);
         const heures = parseFloat(values[3]) || 0;
 
-        if (!jours[cleJour]) return;
-
-        jours[cleJour].saisies.push({
+        joursInternes[key].saisies.push({
             projet: values[1],
             tache: values[2],
             heures
         });
 
-        jours[cleJour].total += heures;
+        joursInternes[key].total += heures;
         totalSemaine += heures;
     });
 
-    return { jours, totalSemaine };
+    return { jours: joursResultat, totalSemaine };
 }
 
 function configurerDeclencheurHebdo() {
