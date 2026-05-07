@@ -481,7 +481,12 @@
     <div id="loadingLine" class="loading-line"></div>
 
     <div class="card">
-        <div class="section-title" data-i18n="projectTask"></div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+            <div class="section-title" data-i18n="projectTask" style="margin-bottom:0"></div>
+            <button type="button" class="btn-icon" id="btnRefresh" onclick="App.rafraichirProjets()" title="Rafraîchir" style="width:28px;height:28px;font-size:16px;">
+                <span class="material-icons-round" style="font-size:16px">refresh</span>
+            </button>
+        </div>
 
         <label for="projectSelect" data-i18n="projet"></label>
         <select id="projectSelect" disabled>
@@ -651,7 +656,9 @@
                     errorLoading: 'Erreur chargement des données',
                     jours: 'j',
                     developedBy: 'Développé par',
-                    saved: 'Enregistré !'
+                    saved: 'Enregistré !',
+                    refreshing: 'Actualisation...',
+                    refreshed: 'Listes mises à jour !'
                 },
                 en: {
                     projectTask: 'Project & Task',
@@ -690,7 +697,9 @@
                     errorLoading: 'Error loading data',
                     jours: 'd',
                     developedBy: 'Developed by',
-                    saved: 'Saved!'
+                    saved: 'Saved!',
+                    refreshing: 'Refreshing...',
+                    refreshed: 'Lists updated!'
                 }
             };
 
@@ -761,22 +770,24 @@
 
             function renderProjects(donnees) {
                 const projectSelect = byId('projectSelect');
+                const previousProject = projectSelect.value;
+                const previousTask = byId('taskSelect').value;
+
                 projectSelect.innerHTML = '';
                 addOption(projectSelect, '', t('selectProject'));
 
                 const projects = [...new Set((donnees || []).map(ligne => ligne[0]).filter(Boolean))];
                 projects.forEach(projet => addOption(projectSelect, projet, projet));
 
+                // Restaurer la sélection précédente ou celle sauvegardée
                 const saved = chargerEtat();
-                if (saved && saved.projet) {
-                    projectSelect.value = saved.projet;
-                }
+                const targetProject = previousProject || (saved && saved.projet) || '';
+                if (targetProject) projectSelect.value = targetProject;
 
                 updateTaskDropdown();
 
-                if (saved && saved.tache) {
-                    byId('taskSelect').value = saved.tache;
-                }
+                const targetTask = previousTask || (saved && saved.tache) || '';
+                if (targetTask) byId('taskSelect').value = targetTask;
             }
 
             function addOption(select, valeur, text) {
@@ -1259,13 +1270,34 @@
                 }
             });
 
+            function rafraichirProjets() {
+                if (!initialise || sauvegardeEnCours) return;
+
+                byId('btnRefresh').disabled = true;
+                afficherNotification(t('refreshing'), 'success');
+
+                google.script.run
+                    .withSuccessHandler(donnees => {
+                        donneesCompletes = donnees || [];
+                        renderProjects(donneesCompletes);
+                        byId('btnRefresh').disabled = false;
+                        afficherNotification(t('refreshed'), 'success');
+                    })
+                    .withFailureHandler(erreur => {
+                        byId('btnRefresh').disabled = false;
+                        afficherNotification(t('error') + formaterMessageErreur(erreur), 'error');
+                    })
+                    .obtenirProjetsEtTaches();
+            }
+
             return {
                 init,
                 basculerChrono,
                 mettreEnPauseChrono,
                 enregistrerManuellement,
                 ajusterHeures,
-                changerOnglet
+                changerOnglet,
+                rafraichirProjets
             };
         })();
 
