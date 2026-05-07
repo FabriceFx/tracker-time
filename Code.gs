@@ -346,6 +346,7 @@ function onOpen() {
         .addItem('🧩 Fusionner les doublons du jour', 'dedoublonnerJournalDuJour')
         .addSeparator()
         .addItem('📅 Activer le bilan par e-mail Ven. 18h', 'configurerDeclencheurHebdo')
+        .addItem('📧 Tester l\'envoi du bilan journalier', 'forcerEnvoiBilanJournalier')
         .addSeparator()
         .addItem('ℹ️ À Propos', 'afficherAPropos')
         .addToUi();
@@ -959,6 +960,22 @@ function envoyerRapportQuotidien(motif) {
     });
 }
 
+function forcerEnvoiBilanJournalier() {
+    const tableur = obtenirTableur_();
+    const fuseau = tableur.getSpreadsheetTimeZone();
+    const dateDuJourStr = obtenirChaineDatePourDate_(new Date(), fuseau);
+    
+    // Effacer le verrou de sécurité d'aujourd'hui pour autoriser un nouvel envoi
+    PropertiesService.getUserProperties().deleteProperty(`sent_seuil_${dateDuJourStr}`);
+    
+    // Lancer l'envoi
+    const lang = obtenirLangueUtilisateur();
+    const t = EMAIL_I18N[lang] || EMAIL_I18N.fr;
+    envoyerRapportQuotidien(`[TEST MANUEL] ${t.dailyGoalReached}`);
+    
+    SpreadsheetApp.getUi().alert('E-mail généré ! Vérifiez votre boîte de réception.');
+}
+
 
 /**
  * ============================================================
@@ -1088,7 +1105,8 @@ function envoyerEmailHebdo() {
     let totalBase = 0;
     let lignesHtml = '';
 
-    Object.entries(report.jours).forEach(([nomJour, donnees]) => {
+    report.jours.forEach(donnees => {
+        const nomJour = donnees.dayLabel;
         totalBase += donnees.heuresDeBase;
 
         const isOff = donnees.heuresDeBase === 0;
