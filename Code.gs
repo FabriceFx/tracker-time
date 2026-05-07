@@ -555,9 +555,9 @@ function obtenirLignesJournalEntreDates_(onglet, dateDebut, dateFin, fuseau) {
     const endKey = obtenirCleDatePourDate_(dateFin, fuseau);
     const rows = [];
 
-    let shouldContinue = true;
-
-    for (let endRow = lastRow; endRow >= 2 && shouldContinue; endRow -= TAILLE_LOT_JOURNAL) {
+    // On balaye tout le journal sans s'arrêter prématurément
+    // pour garantir de trouver toutes les lignes même si elles sont mélangées.
+    for (let endRow = lastRow; endRow >= 2; endRow -= TAILLE_LOT_JOURNAL) {
         const startRow = Math.max(2, endRow - TAILLE_LOT_JOURNAL + 1);
         const height = endRow - startRow + 1;
         const values = onglet.getRange(startRow, 1, height, ENTETES_JOURNAL.length).getValues();
@@ -568,12 +568,6 @@ function obtenirLignesJournalEntreDates_(onglet, dateDebut, dateFin, fuseau) {
 
             if (rowKey >= startKey && rowKey <= endKey) {
                 rows.unshift({ rowIndex: startRow + i, values: ligne, dateKey: rowKey });
-                continue;
-            }
-
-            if (rowKey && rowKey < startKey) {
-                shouldContinue = false;
-                break;
             }
         }
     }
@@ -998,7 +992,7 @@ function obtenirRapportHebdomadaire(lang) {
     const dayNames = DAY_NAMES[lang] || DAY_NAMES.fr;
     const carteHeuresBase = obtenirCarteHeuresDeBase_();
     const joursInternes = {};
-    const joursResultat = {};
+    const joursResultat = [];
     let totalSemaine = 0;
 
     for (let i = 0; i < 7; i++) {
@@ -1008,21 +1002,21 @@ function obtenirRapportHebdomadaire(lang) {
         const key = Utilities.formatDate(d, fuseau, 'yyyy-MM-dd');
         const nomJour = dayNames[d.getDay()];
         const chaineDate = Utilities.formatDate(d, fuseau, 'dd/MM');
-        const displayKey = `${nomJour} ${chaineDate}`;
-
-        joursInternes[key] = {
+        
+        const dayData = {
+            dayLabel: `${nomJour} ${chaineDate}`,
             saisies: [],
             total: 0,
             heuresDeBase: obtenirHeuresDeBasePourDateDepuisCarte_(d, carteHeuresBase, fuseau)
         };
-        // Conserver l'ordre exact d'affichage (du lundi au dimanche)
-        joursResultat[displayKey] = joursInternes[key];
+
+        joursInternes[key] = dayData;
+        joursResultat.push(dayData);
     }
 
     const rows = obtenirLignesJournalEntreDates_(onglet, lundi, dimanche, fuseau);
 
     rows.forEach(({ values, dateKey }) => {
-        // Utilisation robuste de DateKey (yyyy-MM-dd) pour s'affranchir des problèmes de fuseau horaire
         const key = dateKey || obtenirCleDateDepuisCellule_(values[0], fuseau);
         
         if (!key || !joursInternes[key]) return;

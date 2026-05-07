@@ -1176,7 +1176,8 @@
                 let html = '';
                 let totalBase = 0;
 
-                Object.entries(donnees.jours).forEach(([day, info]) => {
+                donnees.jours.forEach(info => {
+                    const day = info.dayLabel;
                     const heuresDeBase = Number(info.heuresDeBase || 0);
                     const total = Number(info.total || 0);
                     totalBase += heuresDeBase;
