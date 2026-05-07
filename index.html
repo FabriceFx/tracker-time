@@ -110,6 +110,44 @@
             box-shadow: 0 0 0 2px rgba(103, 80, 164, 0.15);
         }
 
+        .stepper-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+
+        .stepper-control input {
+            margin-bottom: 0;
+            text-align: center;
+            flex: 1;
+        }
+
+        .btn-icon {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            font-size: 24px;
+            background: var(--surface-variant);
+            color: var(--on-surface);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn-icon:hover:not(:disabled) {
+            background: #e1e2ec;
+        }
+
+        .btn-icon:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
         .gauge-wrap {
             text-align: center;
             margin: 8px 0;
@@ -486,8 +524,11 @@
 
         <div id="tab-manual" class="tab-content" data-tab-group-content="mode">
             <label for="manualHours" data-i18n="heuresDuree"></label>
-            <input type="number" id="manualHours" min="0.01" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5"
-                disabled>
+            <div class="stepper-control">
+                <button type="button" class="btn-icon" id="btnMinus" onclick="App.ajusterHeures(-0.25)" disabled>-</button>
+                <input type="number" id="manualHours" min="-8" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5" disabled>
+                <button type="button" class="btn-icon" id="btnPlus" onclick="App.ajusterHeures(0.25)" disabled>+</button>
+            </div>
 
             <button id="manualSaveBtn" class="btn btn-primary" onclick="App.enregistrerManuellement()" disabled>
                 <span class="material-icons-round">save</span>
@@ -948,8 +989,28 @@
                 byId('pauseBtn').disabled = shouldDisable;
                 byId('manualSaveBtn').disabled = shouldDisable;
                 byId('manualHours').disabled = shouldDisable;
+                byId('btnMinus').disabled = shouldDisable;
+                byId('btnPlus').disabled = shouldDisable;
                 byId('projectSelect').disabled = shouldDisable;
                 byId('taskSelect').disabled = shouldDisable || !byId('projectSelect').value;
+            }
+
+            function ajusterHeures(delta) {
+                if (!initialise || sauvegardeEnCours) return;
+                const input = byId('manualHours');
+                let val = parseFloat(input.value) || 0;
+                val += delta;
+                // Arrondir pour éviter les erreurs de virgule flottante
+                val = Math.round(val * 100) / 100;
+                
+                // Limites
+                if (val < -baseH) val = -baseH;
+                if (val > baseH) val = baseH;
+                
+                // Eviter de tomber pile sur 0 si on ajoute/soustrait
+                if (val === 0) val = delta > 0 ? 0.25 : -0.25;
+
+                input.value = val;
             }
 
             function enregistrerManuellement() {
@@ -964,7 +1025,7 @@
                     return;
                 }
 
-                if (isNaN(heures) || heures <= 0) {
+                if (isNaN(heures) || heures === 0 || Math.abs(heures) > baseH) {
                     afficherNotification(t('invalidDuration'), 'error');
                     return;
                 }
@@ -1197,6 +1258,7 @@
                 basculerChrono,
                 mettreEnPauseChrono,
                 enregistrerManuellement,
+                ajusterHeures,
                 changerOnglet
             };
         })();

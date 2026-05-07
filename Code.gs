@@ -619,8 +619,8 @@ function enregistrerSaisieTemps(saisie) {
             return '❌ Projet et tâche requis.';
         }
 
-        if (isNaN(requestedDuration) || requestedDuration <= 0) {
-            return '❌ Durée invalide.';
+        if (isNaN(requestedDuration) || requestedDuration === 0) {
+            return '❌ Durée invalide (non nulle).';
         }
 
         if (heuresDeBase <= 0) {
@@ -631,11 +631,14 @@ function enregistrerSaisieTemps(saisie) {
         const totalBefore = todayRows.reduce((total, ligne) => total + (parseFloat(ligne.values[3]) || 0), 0);
         const available = heuresDeBase - totalBefore;
 
-        if (available <= 0) {
+        if (available <= 0 && requestedDuration > 0) {
             return `⛔ Limite de ${heuresDeBase}h atteinte. Enregistrement impossible.`;
         }
 
-        const actualDuration = Math.min(requestedDuration, available);
+        let actualDuration = requestedDuration;
+        if (requestedDuration > 0) {
+            actualDuration = Math.min(requestedDuration, available);
+        }
         let existingRow = null;
 
         for (let i = todayRows.length - 1; i >= 0; i--) {
@@ -651,12 +654,26 @@ function enregistrerSaisieTemps(saisie) {
 
         if (existingRow) {
             const heuresActuelles = parseFloat(existingRow.values[3]) || 0;
+            // Ne pas retirer plus d'heures qu'il n'y en a déjà sur la ligne
+            if (actualDuration < 0) {
+                actualDuration = Math.max(actualDuration, -heuresActuelles);
+            }
             const newRowHours = heuresActuelles + actualDuration;
 
-            onglet
-                .getRange(existingRow.rowIndex, 4, 1, 3)
-                .setValues([[newRowHours, ratioSecurise_(newRowHours, heuresDeBase), todayKey]]);
+            if (newRowHours <= 0) {
+                // S'il n'y a plus d'heures, on met à 0
+                onglet
+                    .getRange(existingRow.rowIndex, 4, 1, 3)
+                    .setValues([[0, 0, todayKey]]);
+            } else {
+                onglet
+                    .getRange(existingRow.rowIndex, 4, 1, 3)
+                    .setValues([[newRowHours, ratioSecurise_(newRowHours, heuresDeBase), todayKey]]);
+            }
         } else {
+            if (actualDuration < 0) {
+                return '❌ Impossible de retirer du temps : aucune saisie existante.';
+            }
             onglet.appendRow([
                 maintenant,
                 projet,
@@ -696,8 +713,8 @@ function enregistrerSaisieManuelle(saisie) {
         return '⛔ Aucune heure attendue pour aujourd\'hui dans l\'onglet Paramètres.';
     }
 
-    if (isNaN(heures) || heures <= 0 || heures > heuresDeBase) {
-        return `❌ Heures invalides entre 0.01 et ${heuresDeBase}.`;
+    if (isNaN(heures) || heures === 0 || Math.abs(heures) > heuresDeBase) {
+        return `❌ Heures invalides (entre -${heuresDeBase} et ${heuresDeBase}).`;
     }
 
     return enregistrerSaisieTemps({
