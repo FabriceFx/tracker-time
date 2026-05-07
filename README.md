@@ -1,8 +1,8 @@
-# ⏱️ Tracker Time — Suivi du temps Google Sheets (v2.1)
+# ⏱️ Tracker Time — Suivi du temps Google Sheets (v2.2)
 
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white)](https://developers.google.com/apps-script)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
+[![Version](https://img.shields.io/badge/version-2.2-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
 [![Website](https://img.shields.io/badge/Website-faucheux.bzh-0052cc?style=for-the-badge)](https://faucheux.bzh)
 
 **Tracker Time** est une solution complète, sécurisée et intégrée pour Google Sheets permettant de chronométrer vos tâches professionnelles en temps réel. Conçu pour simplifier la saisie des feuilles de temps (type Planview), il automatise la ventilation des heures par projet, s'adapte à vos horaires quotidiens, et vous notifie automatiquement lorsque votre journée de travail est terminée.
@@ -15,17 +15,20 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 
 ### 🎯 Suivi et saisie
 * **Chronomètre Interactif** : Lancez, mettez en pause et arrêtez le temps passé sur une tâche directement depuis la barre latérale.
-* **Saisie manuelle** : Ajoutez des heures a posteriori via un formulaire simple.
+* **Saisie manuelle avec Stepper** : Ajoutez des heures via un formulaire intuitif. Les boutons **+/−** permettent d'ajuster la durée par paliers de 15 minutes.
+* **Soustraction de temps** : Entrez une valeur négative pour retirer du temps déjà saisi sur une tâche (protégé : impossible de passer en dessous de zéro).
 * **Ajout rapide** : Menu personnalisé pour ajouter facilement 30 minutes à une ligne existante dans le journal.
 * **Cumul intelligent** : Les saisies pour le même projet et la même tâche le même jour sont automatiquement fusionnées sur une seule ligne.
 
 ### ⚙️ Automatisation & personnalisation
 * **Auto-configuration** : Les onglets nécessaires (`Config`, `Journal`, `Paramètres`) sont créés automatiquement s'ils n'existent pas lors du premier lancement.
 * **Horaires dynamiques** : Définissez un nombre d'heures cible différent pour chaque jour de la semaine (ex: 8h du Lundi au Jeudi, 7h le Vendredi).
-* **Rapports automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* de façon automatique dès que votre quota d'heures du jour est atteint. Un bilan hebdomadaire est également envoyé le vendredi.
-* **Format numérique intelligent** : Support natif de la virgule (ex: `1,5`) pour la saisie manuelle et les données Sheets.
+* **Rapports automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* automatiquement dès que votre quota d'heures du jour est atteint. Un bilan hebdomadaire est envoyé le vendredi.
+* **Test manuel d'e-mail** : Un bouton dans le menu permet de forcer l'envoi du bilan journalier à tout moment pour vérification.
 
 ### 🖥️ Expérience utilisateur (UX)
+* **Guide d'aide intégré** : Un bouton **?** ouvre un guide en 4 étapes expliquant le fonctionnement de l'application aux utilisateurs novices.
+* **Rafraîchissement des listes** : Un bouton **↻** permet de recharger les projets/tâches depuis l'onglet Config sans fermer la sidebar.
 * **Jauge de progression** : Visualisation claire et en temps réel de votre avancement quotidien via une jauge circulaire SVG dynamique.
 * **Rapport hebdomadaire** : Consultez le total de vos heures et la répartition sur la semaine en cours directement depuis la sidebar.
 * **Mode sombre** : L'interface s'adapte automatiquement au thème clair/sombre de votre système (Dark Mode).
@@ -34,10 +37,11 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 
 ### 🔒 Robustesse & sécurité
 * **Code entièrement francisé** : Structure du code, variables et fonctions sont à 100% en français pour une maintenance locale facilitée.
-* **Menu À Propos** : Accédez facilement aux informations de la version et aux coordonnées du développeur depuis le menu de l'extension.
-* **Protection XSS** : Toutes les entrées et listes déroulantes sont assainies pour prévenir les failles de sécurité.
+* **Protection XSS** : Toutes les entrées utilisateur sont échappées dans le HTML de la sidebar (fonction `esc()`) ET dans les e-mails (fonction `escHtml_()`).
 * **Persistance (LocalStorage)** : Votre chronomètre continue de tourner en arrière-plan et survit aux rafraîchissements de la page.
 * **Gestion de la concurrence** : Utilisation du `LockService` de Google pour garantir l'intégrité des données si plusieurs requêtes sont lancées simultanément.
+* **Optimisation performance** : Recherche rapide via `TextFinder` sur la colonne `DateKey`, avec retour immédiat si des résultats sont trouvés.
+* **Purge automatique** : Les anciennes propriétés anti-spam (`sent_seuil_`) sont nettoyées à chaque ouverture du classeur.
 
 ---
 
@@ -58,11 +62,24 @@ Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux
 3. Cliquez sur **Minuteur** > **Ouvrir le suivi**.
 4. Les onglets `Config`, `Journal` et `Paramètres` seront créés automatiquement avec les bonnes en-têtes.
 
-### 4. Configuration (Optionnel)
+### 4. Configuration
 * Dans l'onglet **Config**, ajoutez vos couples `Projet` / `Tâche`.
 * Dans l'onglet **Paramètres**, ajustez vos objectifs d'heures pour chaque jour de la semaine.
+* Cliquez sur le bouton **↻** dans la sidebar pour charger vos projets.
+* Cliquez sur le bouton **?** pour consulter le guide d'utilisation intégré.
 
-### 5. Utilisation sur mobile (Web App)
+### 5. Menu ⏱️ Minuteur
+| Entrée du menu | Description |
+|---|---|
+| Ouvrir le suivi | Affiche la barre latérale de saisie |
+| ➕ Ajouter 30min à la sélection | Ajoute 0.5h à la ligne sélectionnée dans le Journal |
+| 🧹 Optimiser le Journal DateKey | Remplit la colonne technique DateKey pour les anciennes lignes |
+| 🧩 Fusionner les doublons du jour | Fusionne les lignes en double pour le même projet/tâche |
+| 📅 Activer le bilan e-mail Ven. 18h | Active le rapport hebdomadaire automatique |
+| 📧 Tester l'envoi du bilan journalier | Force l'envoi d'un e-mail récapitulatif de test |
+| ℹ️ À Propos | Informations sur la version et le développeur |
+
+### 6. Utilisation sur mobile (Web App)
 Pour utiliser le traqueur depuis votre smartphone :
 1. Dans Apps Script, cliquez sur **Déployer** > **Nouvelle application web**.
 2. Exécuter en tant que : *Moi*.
@@ -80,6 +97,25 @@ Pour utiliser le traqueur depuis votre smartphone :
 
 ---
 
+## 📝 Changelog
+
+### v2.2 (Mai 2026)
+* **Stepper +/−** : Boutons d'ajustement par paliers de 15 min pour la saisie manuelle.
+* **Soustraction de temps** : Support des durées négatives pour corriger des saisies.
+* **Guide d'aide** : Modal en 4 étapes pour les utilisateurs novices (FR/EN).
+* **Rafraîchissement** : Bouton ↻ pour recharger les projets sans fermer la sidebar.
+* **Test e-mail** : Bouton dans le menu pour forcer l'envoi du bilan journalier.
+* **Audit de robustesse** : 12 corrections (sécurité XSS e-mails, performance scan, traductions EN, bug `tagName`, purge propriétés, gestion toasts).
+* **Rapport hebdomadaire fiabilisé** : Structure en tableau ordonné + lecture robuste des DateKey.
+
+### v2.1 (Avril 2026)
+* **Francisation complète** du code source.
+* **Rapport hebdomadaire** en sidebar et par e-mail.
+* **Mode sombre** automatique.
+* **Raccourcis clavier** (Espace, P).
+
+---
+
 ## 📄 Licence
 Ce projet est sous licence **MIT**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
 
@@ -88,11 +124,11 @@ Ce projet est sous licence **MIT**. Voir le fichier [LICENSE](LICENSE) pour plus
 ---
 ---
 
-# ⏱️ Tracker Time — Google Sheets Time Tracker (v2.1)
+# ⏱️ Tracker Time — Google Sheets Time Tracker (v2.2)
 
 [![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white)](https://developers.google.com/apps-script)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.1-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
+[![Version](https://img.shields.io/badge/version-2.2-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
 [![Website](https://img.shields.io/badge/Website-faucheux.bzh-0052cc?style=for-the-badge)](https://faucheux.bzh)
 
 **Tracker Time** is a comprehensive, secure, and integrated solution for Google Sheets to track your professional tasks in real-time. Designed to simplify timesheet entries, it automates hour breakdown by project, adapts to your daily schedules, and automatically notifies you when your workday goal is met.
@@ -105,16 +141,20 @@ Developed by **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux.bz
 
 ### 🎯 Tracking & Entry
 * **Interactive Timer**: Start, pause, and stop tracking time on a task directly from the sidebar.
-* **Manual Entry**: Add hours retrospectively using a quick form.
+* **Manual Entry with Stepper**: Add hours via an intuitive form. The **+/−** buttons adjust duration in 15-minute increments.
+* **Time Subtraction**: Enter a negative value to remove previously logged time from a task (protected: cannot go below zero).
 * **Quick Add**: Custom menu option to easily add 30 minutes to an existing log entry.
 * **Smart Accumulation**: Entries for the same project and task on the same day are automatically merged into a single row.
 
 ### ⚙️ Automation & Customization
 * **Auto-setup**: Required tabs (`Config`, `Journal`, `Paramètres`) are automatically created if they don't exist on first launch.
 * **Dynamic Schedules**: Define a different target hour goal for each day of the week (e.g., 8h Mon-Thu, 7h on Friday).
-* **Automated Reports**: A detailed HTML summary email is sent *only once* automatically as soon as your daily hour quota is reached.
+* **Automated Reports**: A detailed HTML summary email is sent *only once* automatically as soon as your daily hour quota is reached. A weekly summary is sent on Fridays.
+* **Manual Email Test**: A menu button lets you force-send the daily report at any time for verification.
 
 ### 🖥️ User Experience (UX)
+* **Built-in Help Guide**: A **?** button opens a 4-step guided walkthrough for new users.
+* **List Refresh**: A **↻** button reloads projects/tasks from the Config tab without closing the sidebar.
 * **Progress Gauge**: Clear, real-time visualization of your daily progress via a dynamic SVG circular gauge.
 * **Weekly Report**: View your total hours and breakdown for the current week directly in the sidebar.
 * **Dark Mode**: The interface automatically adapts to your system's light/dark theme preference.
@@ -122,9 +162,11 @@ Developed by **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux.bz
 * **Bilingual (i18n)**: The interface automatically displays in French or English based on your Google account's locale settings.
 
 ### 🔒 Robustness & Security
-* **XSS Protection**: All inputs and dropdowns are sanitized to prevent security vulnerabilities.
+* **XSS Protection**: All user inputs are escaped in sidebar HTML (`esc()`) AND in emails (`escHtml_()`).
 * **Persistence (LocalStorage)**: Your timer keeps running in the background and survives page refreshes.
 * **Concurrency Management**: Uses Google's `LockService` to ensure data integrity if multiple requests are made simultaneously.
+* **Performance Optimized**: Fast lookup via `TextFinder` on the `DateKey` column, with immediate return when results are found.
+* **Auto-Cleanup**: Old anti-spam properties (`sent_seuil_`) are automatically purged on each spreadsheet open.
 
 ---
 
@@ -145,9 +187,11 @@ Developed by **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux.bz
 3. Click **Timer** > **Open Tracker**.
 4. The `Config`, `Journal`, and `Paramètres` tabs will be created automatically with the correct headers.
 
-### 4. Configuration (Optional)
+### 4. Configuration
 * In the **Config** tab, add your `Project` / `Task` pairs.
 * In the **Paramètres** (Settings) tab, adjust your target hours for each day of the week.
+* Click the **↻** button in the sidebar to load your projects.
+* Click the **?** button to view the built-in user guide.
 
 ### 5. Mobile Use (Web App)
 To use the tracker from your smartphone:

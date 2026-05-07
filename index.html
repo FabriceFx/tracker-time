@@ -480,7 +480,7 @@
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.55);
+            background: rgba(0, 0, 0, 0.55);
             z-index: 200;
             align-items: center;
             justify-content: center;
@@ -496,14 +496,21 @@
             border-radius: 20px;
             width: 100%;
             max-width: 340px;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.22);
             overflow: hidden;
             animation: slideUp 0.25s ease;
         }
 
         @keyframes slideUp {
-            from { transform: translateY(24px); opacity: 0; }
-            to   { transform: translateY(0);    opacity: 1; }
+            from {
+                transform: translateY(24px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
         }
 
         .help-header {
@@ -599,7 +606,7 @@
             width: 7px;
             height: 7px;
             border-radius: 50%;
-            background: rgba(103,80,164,0.2);
+            background: rgba(103, 80, 164, 0.2);
             transition: background 0.2s;
         }
 
@@ -626,10 +633,12 @@
         <div style="display:flex;align-items:center;justify-content:space-between">
             <div class="section-title" data-i18n="projectTask" style="margin-bottom:0"></div>
             <div style="display:flex;gap:4px">
-                <button type="button" class="btn-icon" id="btnHelp" onclick="App.ouvrirAide()" title="Aide" style="width:28px;height:28px;font-size:16px;">
+                <button type="button" class="btn-icon" id="btnHelp" onclick="App.ouvrirAide()" title="Aide"
+                    style="width:28px;height:28px;font-size:16px;">
                     <span class="material-icons-round" style="font-size:16px">help_outline</span>
                 </button>
-                <button type="button" class="btn-icon" id="btnRefresh" onclick="App.rafraichirProjets()" title="Rafraîchir" style="width:28px;height:28px;font-size:16px;">
+                <button type="button" class="btn-icon" id="btnRefresh" onclick="App.rafraichirProjets()"
+                    title="Rafraîchir" style="width:28px;height:28px;font-size:16px;">
                     <span class="material-icons-round" style="font-size:16px">refresh</span>
                 </button>
             </div>
@@ -677,9 +686,12 @@
         <div id="tab-manual" class="tab-content" data-tab-group-content="mode">
             <label for="manualHours" data-i18n="heuresDuree"></label>
             <div class="stepper-control">
-                <button type="button" class="btn-icon" id="btnMinus" onclick="App.ajusterHeures(-0.25)" disabled>-</button>
-                <input type="number" id="manualHours" min="-8" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5" disabled>
-                <button type="button" class="btn-icon" id="btnPlus" onclick="App.ajusterHeures(0.25)" disabled>+</button>
+                <button type="button" class="btn-icon" id="btnMinus" onclick="App.ajusterHeures(-0.25)"
+                    disabled>-</button>
+                <input type="number" id="manualHours" min="-8" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5"
+                    disabled>
+                <button type="button" class="btn-icon" id="btnPlus" onclick="App.ajusterHeures(0.25)"
+                    disabled>+</button>
             </div>
 
             <button id="manualSaveBtn" class="btn btn-primary" onclick="App.enregistrerManuellement()" disabled>
@@ -707,9 +719,10 @@
 
     <div class="card">
         <div class="tabs">
-            <div class="tab active" data-tab-group="period" data-tab="aujourdhui" onclick="App.changerOnglet('aujourdhui')"
-                data-i18n="aujourdhui"></div>
-            <div class="tab" data-tab-group="period" data-tab="week" onclick="App.changerOnglet('week')" data-i18n="week">
+            <div class="tab active" data-tab-group="period" data-tab="aujourdhui"
+                onclick="App.changerOnglet('aujourdhui')" data-i18n="aujourdhui"></div>
+            <div class="tab" data-tab-group="period" data-tab="week" onclick="App.changerOnglet('week')"
+                data-i18n="week">
             </div>
         </div>
 
@@ -759,7 +772,8 @@
             <div style="padding:0 20px 20px">
                 <div class="help-dots" id="helpDots"></div>
                 <div class="help-nav">
-                    <button id="helpPrevBtn" class="btn btn-outline btn-sm" style="flex:0 0 auto;padding:0 14px" onclick="App.naviguerAide(-1)"></button>
+                    <button id="helpPrevBtn" class="btn btn-outline btn-sm" style="flex:0 0 auto;padding:0 14px"
+                        onclick="App.naviguerAide(-1)"></button>
                     <button id="helpNextBtn" class="btn btn-primary btn-sm" onclick="App.naviguerAide(1)"></button>
                 </div>
             </div>
@@ -837,7 +851,7 @@
                     helpStep2Title: '2. Sélectionner projet & tâche',
                     helpStep2: 'Choisissez d\'abord un <strong>projet</strong> dans la première liste, puis une <strong>tâche</strong> dans la deuxième. Ces deux champs sont obligatoires avant toute saisie.',
                     helpStep3Title: '3. Enregistrer votre temps',
-                    helpStep3Chrono: '<strong>Chronomètre</strong> : Cliquez LANCER pour démarrer, ARRÊTE R pour stopper et enregistrer. Utilisez PAUSE pour interrompre sans perdre le temps.',
+                    helpStep3Chrono: '<strong>Chronomètre</strong> : Cliquez LANCER pour démarrer, ARRÊTER pour stopper et enregistrer. Utilisez PAUSE pour interrompre sans perdre le temps.',
                     helpStep3Manual: '<strong>Saisie manuelle</strong> : Entrez directement la durée en heures (ex : 1.5 = 1h30). Les boutons +/− ajustent par paliers de 15 min. Une valeur négative soustrait du temps.',
                     helpStep4Title: '4. Suivi & rapports',
                     helpStep4: 'La jauge indique votre progression du jour. L\'onglet <strong>Aujourd\'hui</strong> liste vos saisies. L\'onglet <strong>Semaine</strong> affiche le bilan hebdomadaire. Un e-mail récapitulatif est envoyé automatiquement quand vous atteignez votre quota.'
@@ -1208,11 +1222,11 @@
                 val += delta;
                 // Arrondir pour éviter les erreurs de virgule flottante
                 val = Math.round(val * 100) / 100;
-                
+
                 // Limites
                 if (val < -baseH) val = -baseH;
                 if (val > baseH) val = baseH;
-                
+
                 // Eviter de tomber pile sur 0 si on ajoute/soustrait
                 if (val === 0) val = delta > 0 ? 0.25 : -0.25;
 
