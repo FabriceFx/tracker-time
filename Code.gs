@@ -533,7 +533,9 @@ function obtenirLignesJournalPourDate_(onglet, dateCible, fuseau) {
 
         values.forEach((ligne, index) => {
             const rowIndex = startRow + index;
-            const rowKey = normaliserTexte_(ligne[5]) || obtenirCleDateDepuisCellule_(ligne[0], fuseau);
+            // Correction : Sheets peut convertir "yyyy-MM-dd" en objet Date, 
+            // il faut donc ré-extraire proprement la clé avec obtenirCleDateDepuisCellule_
+            const rowKey = obtenirCleDateDepuisCellule_(ligne[5], fuseau) || obtenirCleDateDepuisCellule_(ligne[0], fuseau);
 
             if (rowKey === targetKey) {
                 rowsByIndex[rowIndex] = { rowIndex, values: ligne };
@@ -564,7 +566,7 @@ function obtenirLignesJournalEntreDates_(onglet, dateDebut, dateFin, fuseau) {
 
         for (let i = values.length - 1; i >= 0; i--) {
             const ligne = values[i];
-            const rowKey = normaliserTexte_(ligne[5]) || obtenirCleDateDepuisCellule_(ligne[0], fuseau);
+            const rowKey = obtenirCleDateDepuisCellule_(ligne[5], fuseau) || obtenirCleDateDepuisCellule_(ligne[0], fuseau);
 
             if (rowKey >= startKey && rowKey <= endKey) {
                 rows.unshift({ rowIndex: startRow + i, values: ligne, dateKey: rowKey });
