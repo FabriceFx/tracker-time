@@ -3,7 +3,7 @@
  *  TRAQUEUR DE TEMPS (Time Tracker) - Google Apps Script
  * ============================================================================
  *  Auteur      : Fabrice Faucheux (https://faucheux.bzh)
- *  Version     : 2.1
+ *  Version     : 2.2
  *  
  *  Description :
  *  Application complète et autonome de suivi du temps de travail, conçue pour 
@@ -184,6 +184,28 @@ function ratioSecurise_(heures, heuresDeBase) {
     return heuresDeBase > 0 ? heures / heuresDeBase : 0;
 }
 
+function escHtml_(texte) {
+    return String(texte || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function purgerAnciennesProprietes_() {
+    try {
+        const props = PropertiesService.getUserProperties();
+        const all = props.getProperties();
+        const aujourdhui = obtenirDateDuJourStr_();
+        const cleAujourdhui = `sent_seuil_${aujourdhui}`;
+        Object.keys(all).forEach(key => {
+            if (key.startsWith('sent_seuil_') && key !== cleAujourdhui) {
+                props.deleteProperty(key);
+            }
+        });
+    } catch (e) { }
+}
+
 
 /**
  * ============================================================
@@ -335,6 +357,7 @@ function backfillJournalDateKeys() {
 
 function onOpen() {
     assurerPresenceOnglets_();
+    purgerAnciennesProprietes_();
 
     SpreadsheetApp.getUi()
         .createMenu('⏱️ Minuteur')
@@ -489,9 +512,9 @@ function obtenirTotalHeuresPourJour(chaineDate) {
 
 
 /**
- * Lecture rapide des lignes d'une date donnée.
- * Le Journal est supposé alimenté chronologiquement par appendRow.
- * On lit par paquets depuis le bas pour éviter de parcourir tout l'historique.
+ * Lecture robuste des lignes d'une date donnée.
+ * Combine une recherche rapide via TextFinder (colonne DateKey)
+ * suivie d'un balayage complet de secours si nécessaire.
  */
 function obtenirLignesJournalPourDate_(onglet, dateCible, fuseau) {
     const lastRow = onglet.getLastRow();
@@ -521,9 +544,15 @@ function obtenirLignesJournalPourDate_(onglet, dateCible, fuseau) {
         // Si TextFinder échoue, le balayage de secours prend le relais.
     }
 
-    // 2. Balayage de secours.
-    // Important : on ne s'arrête plus dès qu'on croise une date plus ancienne.
-    // Cela évite de rater une ligne si le Journal a été trié ou modifié manuellement.
+    // Si TextFinder a trouvé des résultats, retour immédiat (optimisation performance)
+    if (Object.keys(rowsByIndex).length > 0) {
+        return Object.keys(rowsByIndex)
+            .map(Number)
+            .sort((a, b) => a - b)
+            .map(rowIndex => rowsByIndex[rowIndex]);
+    }
+
+    // 2. Balayage de secours complet (Journal sans DateKey ou TextFinder en échec).
     for (let endRow = lastRow; endRow >= 2; endRow -= TAILLE_LOT_JOURNAL) {
         const startRow = Math.max(2, endRow - TAILLE_LOT_JOURNAL + 1);
         const height = endRow - startRow + 1;
@@ -873,7 +902,7 @@ const EMAIL_I18N = {
         weeklyWeek: 'Week',
         weeklyTotal: 'Weekly Total',
         weeklyEquivalent: 'approximately',
-        weeklyDays: 'jours',
+        weeklyDays: 'days',
         weeklyGoal: 'Weekly Goal',
         weeklyDetails: 'Daily Details',
         weeklyFooter: 'Tracker Time - Automatically generated weekly report.'
@@ -923,7 +952,7 @@ function envoyerRapportQuotidien(motif) {
     const totalInDays = (totalHeures / heuresDeBase).toFixed(2);
     const lignesHtml = Object.entries(resume).map(([key, valeur]) => `
     <tr>
-      <td style="padding:12px 0;border-bottom:1px solid #eee;color:#555">${key}</td>
+      <td style="padding:12px 0;border-bottom:1px solid #eee;color:#555">${escHtml_(key)}</td>
       <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:500;color:#1a73e8">${(valeur / heuresDeBase).toFixed(2)} ${t.dailyDay}</td>
     </tr>`).join('');
 
@@ -990,7 +1019,7 @@ function obtenirRapportHebdomadaire(lang) {
     const fuseau = tableur.getSpreadsheetTimeZone();
     const onglet = tableur.getSheetByName(NOMS_ONGLETS.JOURNAL);
 
-    if (onglet.getLastRow() < 2) return { jours: {}, totalSemaine: 0 };
+    if (onglet.getLastRow() < 2) return { jours: [], totalSemaine: 0 };
 
     const maintenant = new Date();
     const jourSemaine = maintenant.getDay();
@@ -1116,7 +1145,7 @@ function envoyerEmailHebdo() {
         lignesHtml += `
       <tr>
         <td style="padding:12px 0;border-bottom:1px solid #eee;color:#3c4043;font-weight:500;">
-          ${nomJour} <span style="font-size:11px;color:#9aa0a6;font-weight:normal">(${donnees.heuresDeBase}h)</span>
+          ${escHtml_(nomJour)} <span style="font-size:11px;color:#9aa0a6;font-weight:normal">(${donnees.heuresDeBase}h)</span>
         </td>
         <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:bold;color:${color}">
           ${donnees.total.toFixed(2)}h
@@ -1127,7 +1156,7 @@ function envoyerEmailHebdo() {
             lignesHtml += `
         <tr>
           <td colspan="2" style="padding:4px 0 4px 16px;border-bottom:1px solid #f8f9fa;font-size:12px;color:#555;">
-            <span style="color:#6750A4">▪</span> ${saisie.projet} - ${saisie.tache} <span style="float:right;color:#70757a">${saisie.heures.toFixed(2)}h</span>
+            <span style="color:#6750A4">▪</span> ${escHtml_(saisie.projet)} - ${escHtml_(saisie.tache)} <span style="float:right;color:#70757a">${saisie.heures.toFixed(2)}h</span>
           </td>
         </tr>`;
         });

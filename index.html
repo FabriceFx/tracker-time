@@ -658,9 +658,9 @@
                     projet: 'Project',
                     tache: 'Task',
                     loading: 'Loading...',
-                    chooseProjectFirst: 'Choose a projet first',
-                    selectProject: '-- Select projet --',
-                    selectTask: '-- Select tache --',
+                    chooseProjectFirst: 'Choose a project first',
+                    selectProject: '-- Select project --',
+                    selectTask: '-- Select task --',
                     tabChrono: 'Timer',
                     tabManual: 'Manual',
                     start: 'START',
@@ -671,23 +671,23 @@
                     estEnPause: 'Paused',
                     pausedRestored: 'Paused, restored',
                     saveFailed: 'Save failed. Duration kept, try STOP again.',
-                    heuresDuree: 'Duration in heures',
+                    heuresDuree: 'Duration in hours',
                     save: 'Save',
                     dailyProgress: 'Daily progress',
                     aujourdhui: 'Today',
                     week: 'Week',
-                    noEntries: 'No saisies aujourdhui',
+                    noEntries: 'No entries today',
                     loadingData: 'Loading...',
                     error: 'Error',
-                    noData: 'No donnees',
+                    noData: 'No data',
                     kbStartStop: 'Start/Stop',
                     pause: 'Pause',
-                    selectBoth: 'Please select a projet AND a tache.',
-                    selectBothShort: 'Select projet and tache.',
-                    invalidDuration: 'Invalid duree.',
+                    selectBoth: 'Please select a project AND a task.',
+                    selectBothShort: 'Select project and task.',
+                    invalidDuration: 'Invalid duration.',
                     min: 'min',
                     totalWeek: 'Total',
-                    errorLoading: 'Error loading donnees',
+                    errorLoading: 'Error loading data',
                     jours: 'd',
                     developedBy: 'Developed by',
                     saved: 'Saved!'
@@ -1111,6 +1111,7 @@
             function renderToday(resultat) {
                 baseH = resultat.heuresDeBase || 8;
                 byId('manualHours').max = baseH;
+                byId('manualHours').min = -baseH;
                 byId('gaugeLabel').textContent = '/ ' + baseH + 'h';
                 renderHistory(resultat.saisies || []);
                 mettreAJourJauge(resultat.totalHeures || 0);
@@ -1209,16 +1210,20 @@
                 container.innerHTML = html;
             }
 
+            let toastTimer = null;
+
             function afficherNotification(message, type = 'success') {
                 const toast = byId('toast');
                 const icon = byId('toastIcon');
+
+                if (toastTimer) clearTimeout(toastTimer);
 
                 toast.className = 'toast toast-' + type;
                 icon.textContent = type === 'success' ? 'check_circle' : type === 'error' ? 'error' : 'warning';
                 byId('toastMsg').textContent = message;
 
                 toast.classList.add('show');
-                setTimeout(() => toast.classList.remove('show'), 3500);
+                toastTimer = setTimeout(() => toast.classList.remove('show'), 3500);
             }
 
             function getToastTypeFromMessage(message) {
@@ -1240,8 +1245,8 @@
             }
 
             document.addEventListener('keydown', event => {
-                const nomBalise = event.target && event.target.nomBalise ? event.target.nomBalise : '';
-                if (nomBalise === 'INPUT' || nomBalise === 'SELECT' || sauvegardeEnCours || !initialise) return;
+                const tag = event.target && event.target.tagName ? event.target.tagName : '';
+                if (tag === 'INPUT' || tag === 'SELECT' || sauvegardeEnCours || !initialise) return;
 
                 if (event.code === 'Space') {
                     event.preventDefault();
