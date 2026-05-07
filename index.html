@@ -474,6 +474,148 @@
             background: var(--primary-container);
             font-size: 10px;
         }
+
+        /* ============ MODAL AIDE ============ */
+        .help-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.55);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
+            padding: 16px;
+        }
+
+        .help-overlay.open {
+            display: flex;
+        }
+
+        .help-modal {
+            background: var(--surface);
+            border-radius: 20px;
+            width: 100%;
+            max-width: 340px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.22);
+            overflow: hidden;
+            animation: slideUp 0.25s ease;
+        }
+
+        @keyframes slideUp {
+            from { transform: translateY(24px); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+
+        .help-header {
+            background: var(--primary);
+            color: var(--on-primary);
+            padding: 20px 20px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .help-header h2 {
+            font-size: 15px;
+            font-weight: 600;
+            margin: 0;
+        }
+
+        .help-close {
+            background: transparent;
+            border: none;
+            color: var(--on-primary);
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            opacity: 0.85;
+        }
+
+        .help-steps {
+            padding: 20px;
+        }
+
+        .help-step {
+            display: none;
+            animation: slideUp 0.2s ease;
+        }
+
+        .help-step.active {
+            display: block;
+        }
+
+        .help-step-icon {
+            width: 56px;
+            height: 56px;
+            background: var(--primary-container);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 14px;
+        }
+
+        .help-step-icon .material-icons-round {
+            font-size: 28px;
+            color: var(--primary);
+        }
+
+        .help-step h3 {
+            text-align: center;
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--on-surface);
+            margin-bottom: 10px;
+        }
+
+        .help-step p {
+            font-size: 12px;
+            color: var(--outline);
+            line-height: 1.6;
+            text-align: center;
+            margin-bottom: 12px;
+        }
+
+        .help-step ul {
+            font-size: 12px;
+            color: var(--outline);
+            line-height: 1.7;
+            padding-left: 18px;
+            margin-bottom: 8px;
+        }
+
+        .help-step ul li {
+            margin-bottom: 4px;
+        }
+
+        .help-dots {
+            display: flex;
+            justify-content: center;
+            gap: 6px;
+            margin-bottom: 16px;
+        }
+
+        .help-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: rgba(103,80,164,0.2);
+            transition: background 0.2s;
+        }
+
+        .help-dot.active {
+            background: var(--primary);
+        }
+
+        .help-nav {
+            display: flex;
+            gap: 8px;
+        }
+
+        .help-nav .btn {
+            font-size: 12px;
+            height: 38px;
+        }
     </style>
 </head>
 
@@ -483,9 +625,14 @@
     <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between">
             <div class="section-title" data-i18n="projectTask" style="margin-bottom:0"></div>
-            <button type="button" class="btn-icon" id="btnRefresh" onclick="App.rafraichirProjets()" title="Rafraîchir" style="width:28px;height:28px;font-size:16px;">
-                <span class="material-icons-round" style="font-size:16px">refresh</span>
-            </button>
+            <div style="display:flex;gap:4px">
+                <button type="button" class="btn-icon" id="btnHelp" onclick="App.ouvrirAide()" title="Aide" style="width:28px;height:28px;font-size:16px;">
+                    <span class="material-icons-round" style="font-size:16px">help_outline</span>
+                </button>
+                <button type="button" class="btn-icon" id="btnRefresh" onclick="App.rafraichirProjets()" title="Rafraîchir" style="width:28px;height:28px;font-size:16px;">
+                    <span class="material-icons-round" style="font-size:16px">refresh</span>
+                </button>
+            </div>
         </div>
 
         <label for="projectSelect" data-i18n="projet"></label>
@@ -597,6 +744,28 @@
         <span data-i18n="developedBy"></span> <strong>Fabrice Faucheux</strong>
     </div>
 
+    <!-- Modal d'aide -->
+    <div class="help-overlay" id="helpOverlay" onclick="App.fermerAide(event)">
+        <div class="help-modal" id="helpModal">
+            <div class="help-header">
+                <h2 id="helpTitle"></h2>
+                <button class="help-close" onclick="App.fermerAide()">
+                    <span class="material-icons-round">close</span>
+                </button>
+            </div>
+            <div class="help-steps" id="helpSteps">
+                <!-- Les étapes sont générées par JS -->
+            </div>
+            <div style="padding:0 20px 20px">
+                <div class="help-dots" id="helpDots"></div>
+                <div class="help-nav">
+                    <button id="helpPrevBtn" class="btn btn-outline btn-sm" style="flex:0 0 auto;padding:0 14px" onclick="App.naviguerAide(-1)"></button>
+                    <button id="helpNextBtn" class="btn btn-primary btn-sm" onclick="App.naviguerAide(1)"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
         const App = (() => {
             let heureDebut = null;
@@ -658,7 +827,20 @@
                     developedBy: 'Développé par',
                     saved: 'Enregistré !',
                     refreshing: 'Actualisation...',
-                    refreshed: 'Listes mises à jour !'
+                    refreshed: 'Listes mises à jour !',
+                    helpTitle: 'Guide d\'utilisation',
+                    helpPrev: 'Préc.',
+                    helpNext: 'Suivant',
+                    helpClose: 'Terminer',
+                    helpStep1Title: '1. Configurer vos projets',
+                    helpStep1: 'Dans Google Sheets, ouvrez l\'onglet <strong>Config</strong>. Ajoutez une ligne par tâche : <strong>Projet</strong> en colonne A, <strong>Tâche</strong> en colonne B. Cliquez ensuite sur ↻ dans la sidebar pour les charger.',
+                    helpStep2Title: '2. Sélectionner projet & tâche',
+                    helpStep2: 'Choisissez d\'abord un <strong>projet</strong> dans la première liste, puis une <strong>tâche</strong> dans la deuxième. Ces deux champs sont obligatoires avant toute saisie.',
+                    helpStep3Title: '3. Enregistrer votre temps',
+                    helpStep3Chrono: '<strong>Chronomètre</strong> : Cliquez LANCER pour démarrer, ARRÊTE R pour stopper et enregistrer. Utilisez PAUSE pour interrompre sans perdre le temps.',
+                    helpStep3Manual: '<strong>Saisie manuelle</strong> : Entrez directement la durée en heures (ex : 1.5 = 1h30). Les boutons +/− ajustent par paliers de 15 min. Une valeur négative soustrait du temps.',
+                    helpStep4Title: '4. Suivi & rapports',
+                    helpStep4: 'La jauge indique votre progression du jour. L\'onglet <strong>Aujourd\'hui</strong> liste vos saisies. L\'onglet <strong>Semaine</strong> affiche le bilan hebdomadaire. Un e-mail récapitulatif est envoyé automatiquement quand vous atteignez votre quota.'
                 },
                 en: {
                     projectTask: 'Project & Task',
@@ -699,7 +881,20 @@
                     developedBy: 'Developed by',
                     saved: 'Saved!',
                     refreshing: 'Refreshing...',
-                    refreshed: 'Lists updated!'
+                    refreshed: 'Lists updated!',
+                    helpTitle: 'User Guide',
+                    helpPrev: 'Back',
+                    helpNext: 'Next',
+                    helpClose: 'Done',
+                    helpStep1Title: '1. Set up your projects',
+                    helpStep1: 'In Google Sheets, open the <strong>Config</strong> tab. Add one row per task: <strong>Project</strong> in column A, <strong>Task</strong> in column B. Then click ↻ in the sidebar to reload.',
+                    helpStep2Title: '2. Select project & task',
+                    helpStep2: 'First choose a <strong>project</strong> from the first dropdown, then a <strong>task</strong> from the second. Both fields are required before any entry.',
+                    helpStep3Title: '3. Log your time',
+                    helpStep3Chrono: '<strong>Stopwatch</strong>: Click START to begin, STOP to save. Use PAUSE to pause without losing time.',
+                    helpStep3Manual: '<strong>Manual entry</strong>: Type a duration in hours (e.g. 1.5 = 1h30). The +/− buttons adjust by 15-min steps. A negative value subtracts time.',
+                    helpStep4Title: '4. Tracking & reports',
+                    helpStep4: 'The gauge shows your daily progress. The <strong>Today</strong> tab lists your entries. The <strong>Week</strong> tab shows the weekly summary. A recap email is sent automatically when you reach your quota.'
                 }
             };
 
@@ -1290,6 +1485,90 @@
                     .obtenirProjetsEtTaches();
             }
 
+            // ============ AIDE ============
+            let helpStep = 0;
+
+            function obtenirEtapesAide() {
+                return [
+                    {
+                        icon: 'table_chart',
+                        title: t('helpStep1Title'),
+                        html: t('helpStep1')
+                    },
+                    {
+                        icon: 'checklist',
+                        title: t('helpStep2Title'),
+                        html: t('helpStep2')
+                    },
+                    {
+                        icon: 'timer',
+                        title: t('helpStep3Title'),
+                        html: `${t('helpStep3Chrono')}<br><br>${t('helpStep3Manual')}`
+                    },
+                    {
+                        icon: 'bar_chart',
+                        title: t('helpStep4Title'),
+                        html: t('helpStep4')
+                    }
+                ];
+            }
+
+            function ouvrirAide() {
+                helpStep = 0;
+                const etapes = obtenirEtapesAide();
+                const stepsContainer = byId('helpSteps');
+                const dotsContainer = byId('helpDots');
+
+                byId('helpTitle').textContent = t('helpTitle');
+
+                stepsContainer.innerHTML = etapes.map((etape, i) => `
+                    <div class="help-step${i === 0 ? ' active' : ''}" id="helpStep${i}">
+                        <div class="help-step-icon">
+                            <span class="material-icons-round">${etape.icon}</span>
+                        </div>
+                        <h3>${etape.title}</h3>
+                        <p style="text-align:left">${etape.html}</p>
+                    </div>
+                `).join('');
+
+                dotsContainer.innerHTML = etapes.map((_, i) =>
+                    `<div class="help-dot${i === 0 ? ' active' : ''}" id="helpDot${i}"></div>`
+                ).join('');
+
+                mettreAJourBoutonsAide(etapes.length);
+                byId('helpOverlay').classList.add('open');
+            }
+
+            function fermerAide(event) {
+                if (event && event.target !== byId('helpOverlay')) return;
+                byId('helpOverlay').classList.remove('open');
+            }
+
+            function naviguerAide(direction) {
+                const etapes = obtenirEtapesAide();
+                if (direction === 1 && helpStep === etapes.length - 1) {
+                    byId('helpOverlay').classList.remove('open');
+                    return;
+                }
+
+                byId('helpStep' + helpStep).classList.remove('active');
+                byId('helpDot' + helpStep).classList.remove('active');
+
+                helpStep = Math.max(0, Math.min(helpStep + direction, etapes.length - 1));
+
+                byId('helpStep' + helpStep).classList.add('active');
+                byId('helpDot' + helpStep).classList.add('active');
+                mettreAJourBoutonsAide(etapes.length);
+            }
+
+            function mettreAJourBoutonsAide(total) {
+                const prev = byId('helpPrevBtn');
+                const next = byId('helpNextBtn');
+                prev.textContent = t('helpPrev');
+                prev.style.visibility = helpStep === 0 ? 'hidden' : 'visible';
+                next.textContent = helpStep === total - 1 ? t('helpClose') : t('helpNext');
+            }
+
             return {
                 init,
                 basculerChrono,
@@ -1297,7 +1576,10 @@
                 enregistrerManuellement,
                 ajusterHeures,
                 changerOnglet,
-                rafraichirProjets
+                rafraichirProjets,
+                ouvrirAide,
+                fermerAide,
+                naviguerAide
             };
         })();
 
