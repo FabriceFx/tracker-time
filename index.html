@@ -1176,7 +1176,7 @@
                 let html = '';
                 let totalBase = 0;
 
-                Object.saisies(donnees.jours).forEach(([day, info]) => {
+                Object.entries(donnees.jours).forEach(([day, info]) => {
                     const heuresDeBase = Number(info.heuresDeBase || 0);
                     const total = Number(info.total || 0);
                     totalBase += heuresDeBase;

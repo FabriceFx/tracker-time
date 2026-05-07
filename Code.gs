@@ -924,7 +924,7 @@ function envoyerRapportQuotidien(motif) {
     if (totalHeures === 0) return;
 
     const totalInDays = (totalHeures / heuresDeBase).toFixed(2);
-    const lignesHtml = Object.saisies(resume).map(([key, valeur]) => `
+    const lignesHtml = Object.entries(resume).map(([key, valeur]) => `
     <tr>
       <td style="padding:12px 0;border-bottom:1px solid #eee;color:#555">${key}</td>
       <td style="padding:12px 0;border-bottom:1px solid #eee;text-align:right;font-weight:500;color:#1a73e8">${(valeur / heuresDeBase).toFixed(2)} ${t.dailyDay}</td>
@@ -1093,7 +1093,7 @@ function envoyerEmailHebdo() {
     let totalBase = 0;
     let lignesHtml = '';
 
-    Object.saisies(report.jours).forEach(([nomJour, donnees]) => {
+    Object.entries(report.jours).forEach(([nomJour, donnees]) => {
         totalBase += donnees.heuresDeBase;
 
         const isOff = donnees.heuresDeBase === 0;
