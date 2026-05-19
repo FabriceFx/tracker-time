@@ -1,215 +1,155 @@
-# ⏱️ Tracker Time — Suivi du temps Google Sheets (v2.2)
+# 📦 Tracker Time — Suivi du temps Google Sheets (v2.2.0)
 
-[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white)](https://developers.google.com/apps-script)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.2-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
-[![Website](https://img.shields.io/badge/Website-faucheux.bzh-0052cc?style=for-the-badge)](https://faucheux.bzh)
-
-**Tracker Time** est une solution complète, sécurisée et intégrée pour Google Sheets permettant de chronométrer vos tâches professionnelles en temps réel. Conçu pour simplifier la saisie des feuilles de temps (type Planview), il automatise la ventilation des heures par projet, s'adapte à vos horaires quotidiens, et vous notifie automatiquement lorsque votre journée de travail est terminée.
-
-Développé par **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux.bzh)
+[🇫🇷 Version Française](#-version-française) | [🇬🇧 English Version](#-english-version)
 
 ---
 
-## ✨ Fonctionnalités clés
+## 🇫🇷 Version Française
 
-### 🎯 Suivi et saisie
-* **Chronomètre Interactif** : Lancez, mettez en pause et arrêtez le temps passé sur une tâche directement depuis la barre latérale.
-* **Saisie manuelle avec Stepper** : Ajoutez des heures via un formulaire intuitif. Les boutons **+/−** permettent d'ajuster la durée par paliers de 15 minutes.
-* **Soustraction de temps** : Entrez une valeur négative pour retirer du temps déjà saisi sur une tâche (protégé : impossible de passer en dessous de zéro).
-* **Ajout rapide** : Menu personnalisé pour ajouter facilement 30 minutes à une ligne existante dans le journal.
-* **Cumul intelligent** : Les saisies pour le même projet et la même tâche le même jour sont automatiquement fusionnées sur une seule ligne.
+> Tracker Time est une solution complète, sécurisée et intégrée pour Google Sheets permettant de chronométrer vos tâches professionnelles en temps réel. Il automatise la ventilation des heures par projet, s'adapte à vos horaires et vous notifie par e-mail.
 
-### ⚙️ Automatisation & personnalisation
-* **Auto-configuration** : Les onglets nécessaires (`Config`, `Journal`, `Paramètres`) sont créés automatiquement s'ils n'existent pas lors du premier lancement.
-* **Horaires dynamiques** : Définissez un nombre d'heures cible différent pour chaque jour de la semaine (ex: 8h du Lundi au Jeudi, 7h le Vendredi).
-* **Rapports automatisés** : Un e-mail récapitulatif HTML détaillé est envoyé *une seule fois* automatiquement dès que votre quota d'heures du jour est atteint. Un bilan hebdomadaire est envoyé le vendredi.
-* **Test manuel d'e-mail** : Un bouton dans le menu permet de forcer l'envoi du bilan journalier à tout moment pour vérification.
-
-### 🖥️ Expérience utilisateur (UX)
-* **Guide d'aide intégré** : Un bouton **?** ouvre un guide en 4 étapes expliquant le fonctionnement de l'application aux utilisateurs novices.
-* **Rafraîchissement des listes** : Un bouton **↻** permet de recharger les projets/tâches depuis l'onglet Config sans fermer la sidebar.
-* **Jauge de progression** : Visualisation claire et en temps réel de votre avancement quotidien via une jauge circulaire SVG dynamique.
-* **Rapport hebdomadaire** : Consultez le total de vos heures et la répartition sur la semaine en cours directement depuis la sidebar.
-* **Mode sombre** : L'interface s'adapte automatiquement au thème clair/sombre de votre système (Dark Mode).
-* **Raccourcis clavier** : Appuyez sur `Espace` pour Lancer/Arrêter, et sur `P` pour mettre en Pause.
-* **Bilingue (i18n)** : L'interface s'affiche automatiquement en Français ou en Anglais selon les paramètres régionaux de votre compte Google.
-
-### 🔒 Robustesse & sécurité
-* **Code entièrement francisé** : Structure du code, variables et fonctions sont à 100% en français pour une maintenance locale facilitée.
-* **Protection XSS** : Toutes les entrées utilisateur sont échappées dans le HTML de la sidebar (fonction `esc()`) ET dans les e-mails (fonction `escHtml_()`).
-* **Persistance (LocalStorage)** : Votre chronomètre continue de tourner en arrière-plan et survit aux rafraîchissements de la page.
-* **Gestion de la concurrence** : Utilisation du `LockService` de Google pour garantir l'intégrité des données si plusieurs requêtes sont lancées simultanément.
-* **Optimisation performance** : Recherche rapide via `TextFinder` sur la colonne `DateKey`, avec retour immédiat si des résultats sont trouvés.
-* **Purge automatique** : Les anciennes propriétés anti-spam (`sent_seuil_`) sont nettoyées à chaque ouverture du classeur.
+<a href="https://developers.google.com/apps-script"><img src="https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white" alt="Google Apps Script"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-indigo?style=for-the-badge" alt="License: MIT"></a>
+<a href="README.md"><img src="https://img.shields.io/badge/Status-Production-emerald?style=for-the-badge" alt="Status: Production"></a>
 
 ---
 
-## 🚀 Installation & déploiement
+### ✨ Fonctionnalités Clés
 
-### 1. Préparation du Google Sheet
-1. Créez un nouveau fichier Google Sheets.
-2. Allez dans **Extensions** > **Apps Script**.
-
-### 2. Copie du code
-1. Dans l'éditeur, collez le contenu du fichier `Code.gs`.
-2. Créez un fichier HTML nommé `index.html` et collez-y le code de l'interface.
-3. Enregistrez le projet.
-
-### 3. Initialisation
-1. Retournez sur votre feuille de calcul et rafraîchissez la page (`F5`).
-2. Un menu **⏱️ Minuteur** apparaîtra dans la barre de menu.
-3. Cliquez sur **Minuteur** > **Ouvrir le suivi**.
-4. Les onglets `Config`, `Journal` et `Paramètres` seront créés automatiquement avec les bonnes en-têtes.
-
-### 4. Configuration
-* Dans l'onglet **Config**, ajoutez vos couples `Projet` / `Tâche`.
-* Dans l'onglet **Paramètres**, ajustez vos objectifs d'heures pour chaque jour de la semaine.
-* Cliquez sur le bouton **↻** dans la sidebar pour charger vos projets.
-* Cliquez sur le bouton **?** pour consulter le guide d'utilisation intégré.
-
-### 5. Menu ⏱️ Minuteur
-| Entrée du menu | Description |
-|---|---|
-| Ouvrir le suivi | Affiche la barre latérale de saisie |
-| ➕ Ajouter 30min à la sélection | Ajoute 0.5h à la ligne sélectionnée dans le Journal |
-| 🧹 Optimiser le Journal DateKey | Remplit la colonne technique DateKey pour les anciennes lignes |
-| 🧩 Fusionner les doublons du jour | Fusionne les lignes en double pour le même projet/tâche |
-| 📅 Activer le bilan e-mail Ven. 18h | Active le rapport hebdomadaire automatique |
-| 📧 Tester l'envoi du bilan journalier | Force l'envoi d'un e-mail récapitulatif de test |
-| ℹ️ À Propos | Informations sur la version et le développeur |
-
-### 6. Utilisation sur mobile (Web App)
-Pour utiliser le traqueur depuis votre smartphone :
-1. Dans Apps Script, cliquez sur **Déployer** > **Nouvelle application web**.
-2. Exécuter en tant que : *Moi*.
-3. Accès : *Toute personne ayant le lien* (ou juste vous).
-4. Déployez et copiez l'URL fournie pour y accéder depuis le navigateur de votre téléphone.
+- ⏱️ **Chronomètre Interactif** : Lancez, mettez en pause et arrêtez le temps passé sur une tâche directement depuis le panneau latéral.
+- 🔢 **Saisie Manuelle (Stepper)** : Formulaire intuitif avec boutons **+/−** pour ajuster la durée par paliers de 15 minutes.
+- ➖ **Soustraction de Temps** : Entrez une valeur négative pour corriger ou retirer du temps déjà saisi (bloqué à zéro minimum).
+- ⚙️ **Auto-Configuration** : Génère automatiquement les onglets requis (`Config`, `Journal`, `Paramètres`) lors du tout premier démarrage.
+- 📅 **Horaires Cibles Dynamiques** : Fixez un objectif d'heures différent pour chaque jour de la semaine.
+- 📧 **Rapports par E-mail** : Envoi automatique d'un bilan HTML soigné dès que votre quota d'heures quotidien est atteint, et bilan de synthèse le vendredi à 18h.
+- 📊 **Jauge SVG Circulaire** : Visualisation claire et animée de votre avancement quotidien dans la sidebar.
+- 🔒 **Sécurité XSS & Concurrence** : Échappement des caractères utilisateur dans le code et les e-mails, et gestion des accès simultanés via `LockService`.
 
 ---
 
-## 🛠 Technologies & architecture
+### 🚀 Installation & Configuration
 
-* **Backend** : Google Apps Script (V8).
-* **Frontend** : HTML5, CSS3 (Variables, Flexbox, UI Material 3 adaptative), Vanilla JS (ES6).
-* **Design** : Material Icons Round, Police Google "Inter", SVG pour la data-visualisation.
-* **API Google** : `SpreadsheetApp`, `MailApp`, `PropertiesService` (pour éviter les e-mails en double), `LockService`.
-
----
-
-## 📝 Changelog
-
-### v2.2 (Mai 2026)
-* **Stepper +/−** : Boutons d'ajustement par paliers de 15 min pour la saisie manuelle.
-* **Soustraction de temps** : Support des durées négatives pour corriger des saisies.
-* **Guide d'aide** : Modal en 4 étapes pour les utilisateurs novices (FR/EN).
-* **Rafraîchissement** : Bouton ↻ pour recharger les projets sans fermer la sidebar.
-* **Test e-mail** : Bouton dans le menu pour forcer l'envoi du bilan journalier.
-* **Audit de robustesse** : 12 corrections (sécurité XSS e-mails, performance scan, traductions EN, bug `tagName`, purge propriétés, gestion toasts).
-* **Rapport hebdomadaire fiabilisé** : Structure en tableau ordonné + lecture robuste des DateKey.
-
-### v2.1 (Avril 2026)
-* **Francisation complète** du code source.
-* **Rapport hebdomadaire** en sidebar et par e-mail.
-* **Mode sombre** automatique.
-* **Raccourcis clavier** (Espace, P).
+1. Ouvrez un fichier Google Sheets.
+2. Accédez à **Extensions > Apps Script**.
+3. Créez les fichiers de script (.gs) suivants et collez-y leur contenu respectif :
+   * **[Code.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Code.gs)**
+   * **[Config.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Config.gs)**
+   * **[Utils.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Utils.gs)**
+4. Créez les fichiers HTML suivants (Fichier > Nouveau > HTML) et collez-y leur contenu respectif :
+   * **[Sidebar.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Sidebar.html)** (l'interface)
+   * **[Stylesheet.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Stylesheet.html)** (les styles CSS)
+   * **[JavaScript.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/JavaScript.html)** (la logique client JS)
+5. Sauvegardez le projet et actualisez la page de votre feuille Google Sheets. Un nouveau menu **"⏱️ Minuteur"** apparaît dans votre feuille !
 
 ---
 
-## 📄 Licence
-Ce projet est sous licence **MIT**. Voir le fichier [LICENSE](LICENSE) pour plus de détails.
+### 📖 Raccourcis Clavier & Menu
 
-<br><br>
-
----
----
-
-# ⏱️ Tracker Time — Google Sheets Time Tracker (v2.2)
-
-[![Google Apps Script](https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white)](https://developers.google.com/apps-script)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](https://opensource.org/licenses/MIT)
-[![Version](https://img.shields.io/badge/version-2.2-blue.svg?style=for-the-badge)](https://github.com/fabricefx/tracker-time)
-[![Website](https://img.shields.io/badge/Website-faucheux.bzh-0052cc?style=for-the-badge)](https://faucheux.bzh)
-
-**Tracker Time** is a comprehensive, secure, and integrated solution for Google Sheets to track your professional tasks in real-time. Designed to simplify timesheet entries, it automates hour breakdown by project, adapts to your daily schedules, and automatically notifies you when your workday goal is met.
-
-Developed by **Fabrice Faucheux** — [https://faucheux.bzh](https://faucheux.bzh)
+*   **Espace** : Lancer / Arrêter le chronomètre.
+*   **P** : Mettre en pause le chronomètre.
+*   **Menu Apps Script** :
+    *   *Ouvrir le suivi* : Ouvre la barre latérale.
+    *   *Ajouter 30min à la sélection* : Ajoute 0.5h à la ligne sélectionnée dans le journal.
+    *   *Fusionner les doublons du jour* : Combine automatiquement les lignes identiques du jour.
 
 ---
 
-## ✨ Key Features
+### 🛠️ Architecture du Projet
 
-### 🎯 Tracking & Entry
-* **Interactive Timer**: Start, pause, and stop tracking time on a task directly from the sidebar.
-* **Manual Entry with Stepper**: Add hours via an intuitive form. The **+/−** buttons adjust duration in 15-minute increments.
-* **Time Subtraction**: Enter a negative value to remove previously logged time from a task (protected: cannot go below zero).
-* **Quick Add**: Custom menu option to easily add 30 minutes to an existing log entry.
-* **Smart Accumulation**: Entries for the same project and task on the same day are automatically merged into a single row.
+Le projet a été modularisé sous forme de fichiers spécialisés conformément aux normes de développement moderne de FF Labs :
 
-### ⚙️ Automation & Customization
-* **Auto-setup**: Required tabs (`Config`, `Journal`, `Paramètres`) are automatically created if they don't exist on first launch.
-* **Dynamic Schedules**: Define a different target hour goal for each day of the week (e.g., 8h Mon-Thu, 7h on Friday).
-* **Automated Reports**: A detailed HTML summary email is sent *only once* automatically as soon as your daily hour quota is reached. A weekly summary is sent on Fridays.
-* **Manual Email Test**: A menu button lets you force-send the daily report at any time for verification.
-
-### 🖥️ User Experience (UX)
-* **Built-in Help Guide**: A **?** button opens a 4-step guided walkthrough for new users.
-* **List Refresh**: A **↻** button reloads projects/tasks from the Config tab without closing the sidebar.
-* **Progress Gauge**: Clear, real-time visualization of your daily progress via a dynamic SVG circular gauge.
-* **Weekly Report**: View your total hours and breakdown for the current week directly in the sidebar.
-* **Dark Mode**: The interface automatically adapts to your system's light/dark theme preference.
-* **Keyboard Shortcuts**: Press `Space` to Start/Stop, and `P` to Pause.
-* **Bilingual (i18n)**: The interface automatically displays in French or English based on your Google account's locale settings.
-
-### 🔒 Robustness & Security
-* **XSS Protection**: All user inputs are escaped in sidebar HTML (`esc()`) AND in emails (`escHtml_()`).
-* **Persistence (LocalStorage)**: Your timer keeps running in the background and survives page refreshes.
-* **Concurrency Management**: Uses Google's `LockService` to ensure data integrity if multiple requests are made simultaneously.
-* **Performance Optimized**: Fast lookup via `TextFinder` on the `DateKey` column, with immediate return when results are found.
-* **Auto-Cleanup**: Old anti-spam properties (`sent_seuil_`) are automatically purged on each spreadsheet open.
+- **[Code.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Code.gs)** : Orchestration principale côté serveur (menu Sheets, routes GET et déclencheurs).
+- **[Config.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Config.gs)** : Fichier de configuration centralisant les constantes structurelles et le logger unifié.
+- **[Utils.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Utils.gs)** : Fonctions utilitaires serveurs (calculs de quotas, conversion de dates, include HTML).
+- **[Sidebar.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Sidebar.html)** : Structure HTML de l'interface utilisateur sémantique intégrant les icônes SVG en ligne.
+- **[Stylesheet.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Stylesheet.html)** : Styles CSS modernes, gérant les tokens de design MD3 et le thème sombre automatique.
+- **[JavaScript.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/JavaScript.html)** : Logique Javascript applicative côté client (IIFE App, chronomètre, persistance locale, raccourcis).
 
 ---
 
-## 🚀 Installation & Deployment
+### 👤 Auteur
 
-### 1. Google Sheet Preparation
-1. Create a new Google Sheets file.
-2. Go to **Extensions** > **Apps Script**.
-
-### 2. Code Copy
-1. In the editor, paste the contents of the `Code.gs` file.
-2. Create an HTML file named `index.html` and paste the interface code.
-3. Save the project.
-
-### 3. Initialization
-1. Return to your spreadsheet and refresh the page (`F5`).
-2. A **⏱️ Timer** menu will appear in the menu bar.
-3. Click **Timer** > **Open Tracker**.
-4. The `Config`, `Journal`, and `Paramètres` tabs will be created automatically with the correct headers.
-
-### 4. Configuration
-* In the **Config** tab, add your `Project` / `Task` pairs.
-* In the **Paramètres** (Settings) tab, adjust your target hours for each day of the week.
-* Click the **↻** button in the sidebar to load your projects.
-* Click the **?** button to view the built-in user guide.
-
-### 5. Mobile Use (Web App)
-To use the tracker from your smartphone:
-1. In Apps Script, click **Deploy** > **New deployment**.
-2. Execute as: *Me*.
-3. Who has access: *Anyone with the link* (or just you).
-4. Deploy and copy the provided URL to access it from your phone's browser.
+- **[Fabrice Faucheux](https://faucheux.bzh)** (FF Labs) - [GitHub](https://github.com/FabriceFx)
 
 ---
 
-## 🛠 Tech Stack & Architecture
+### 📄 Licence
 
-* **Backend**: Google Apps Script (V8).
-* **Frontend**: HTML5, CSS3 (Variables, Flexbox, Adaptive Material 3 UI), Vanilla JS (ES6).
-* **Design**: Material Icons Round, Google "Inter" font, SVG for data visualization.
-* **Google APIs**: `SpreadsheetApp`, `MailApp`, `PropertiesService` (to prevent duplicate emails), `LockService`.
+Ce projet est disponible sous licence **MIT**. Pour plus d'informations, veuillez consulter le fichier [LICENSE](LICENSE).
 
 ---
 
-## 📄 License
-This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) file for details.
+## 🇬🇧 English Version
+
+> Tracker Time is a comprehensive, secure, and integrated solution for Google Sheets to track your professional tasks in real-time. It automates hour breakdown by project, adapts to your schedules, and alerts you by email.
+
+<a href="https://developers.google.com/apps-script"><img src="https://img.shields.io/badge/Google%20Apps%20Script-4285F4?style=for-the-badge&logo=google-apps-script&logoColor=white" alt="Google Apps Script"></a>
+<a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-indigo?style=for-the-badge" alt="License: MIT"></a>
+
+---
+
+### ✨ Key Features
+
+- ⏱️ **Interactive Timer**: Start, pause, and stop tracking time on any task directly from the sidebar.
+- 🔢 **Manual Entry (Stepper)**: Intuitive form with **+/−** buttons to adjust logged hours in 15-minute increments.
+- ➖ **Time Subtraction**: Support for negative values to correct or subtract previously logged hours (zero-minimum limit).
+- ⚙️ **Auto-Setup**: Generates required sheets (`Config`, `Journal`, `Paramètres`) automatically on first launch.
+- 📅 **Dynamic Hour Goals**: Define custom target goals individually for each day of the week.
+- 📧 **Email Summaries**: Automatically dispatches a clean HTML recap email as soon as your daily target is met, plus a Friday 6 PM review.
+- 📊 **SVG Progress Gauge**: Clear, animated circular tracking gauge displayed in real-time in the sidebar.
+- 🔒 **XSS Shield & Concurrency**: Sanitizes all entries in HTML and email, and guarantees data integrity via Google's `LockService`.
+
+---
+
+### 🚀 Installation & Setup
+
+1. Open any Google Spreadsheet.
+2. Select **Extensions > Apps Script**.
+3. Create the following script files (.gs) and paste their respective contents:
+   * **[Code.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Code.gs)**
+   * **[Config.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Config.gs)**
+   * **[Utils.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Utils.gs)**
+4. Create the following HTML files (File > New > HTML) and paste their respective contents:
+   * **[Sidebar.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Sidebar.html)** (the layout structure)
+   * **[Stylesheet.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Stylesheet.html)** (the CSS styling)
+   * **[JavaScript.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/JavaScript.html)** (the client JS logic)
+5. Save the project and refresh your Google Sheets tab. A new **"⏱️ Minuteur"** menu item will appear!
+
+---
+
+### 📖 Keyboard Shortcuts & Options
+
+*   **Spacebar**: Start / Stop the running timer.
+*   **P Key**: Pause the timer.
+*   **Menu Reference**:
+    *   *Open Tracker*: Displays the sidebar panel.
+    *   *Add 30min to Selection*: Appends 0.5h directly on selected sheet rows.
+    *   *Merge Duplicates*: Groups similar entries of the day into a single row.
+
+---
+
+### 🛠️ Project Structure
+
+The project has been modularized into highly focused files following modern developer standards:
+
+- **[Code.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Code.gs)**: Main server orchestrator (custom menu, web app entrypoint, triggers).
+- **[Config.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Config.gs)**: Central configuration parameters, constant scopes, and unified logging.
+- **[Utils.gs](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Utils.gs)**: Apps Script server helper library (date parsing, day index lookups, HTML imports).
+- **[Sidebar.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Sidebar.html)**: Symmetrical interface layouts embedding pure inline SVGs assets.
+- **[Stylesheet.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/Stylesheet.html)**: Clean, high-fidelity CSS declarations wrapping MD3 colors and dark mode assets.
+- **[JavaScript.html](file:///Users/fabrice/Documents/Mes%20développements/Suivi%20des%20temps/JavaScript.html)**: Client-side JS implementation (timer state management, persistence, keyboard triggers).
+
+---
+
+### 👤 Author
+
+- **[Fabrice Faucheux](https://faucheux.bzh)** (FF Labs) - [GitHub](https://github.com/FabriceFx)
+
+---
+
+### 📄 License
+
+This project is licensed under the terms of the **MIT License**.
+
+---
+<p align="center"><a href="https://faucheux.bzh" target="_blank" style="color: inherit; text-decoration: none;">&lt;&gt; par Fabrice Faucheux</a></p>

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <base target="_top">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  
+  <!-- Polices modernes Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Open+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+  <!-- Fichier CSS Unifié FF Labs -->
+  <?!= include('Stylesheet'); ?>
+</head>
+
+<body>
+  <!-- Overlay de chargement flouté MD3 FF Labs -->
+  <div id="loadingOverlay">
+    <div class="overlay-spinner"></div>
+    <span id="loadingOverlayText" style="font-size: 11px; font-weight: 500; color: var(--outline);">Enregistrement...</span>
+  </div>
+
+  <div class="container">
+    <div id="loadingLine" class="loading-line"></div>
+
+    <!-- Section Projet et Tâche -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div class="section-title" data-i18n="projectTask" style="margin-bottom:0">Projet & tâche</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="language-selector">
+            <button type="button" class="lang-btn active" id="lang-fr" onclick="App.changerLangue('fr')" title="Français">🇫🇷</button>
+            <button type="button" class="lang-btn" id="lang-en" onclick="App.changerLangue('en')" title="English">🇬🇧</button>
+          </div>
+          <button type="button" class="btn-icon" id="btnHelp" onclick="App.ouvrirAide()" title="Aide" style="width:28px;height:28px;">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-6.48 10-10S17.52 2 12 2zm1 16h-2v-2h2v2zm1.07-7.75l-.9.92C12.45 11.9 12 12.5 12 14h-2v-.5c0-1.1.45-2.1 1.17-2.83l1.24-1.26c.37-.36.59-.86.59-1.41 0-1.1-.9-2-2-2s-2 .9-2 2H7c0-2.76 2.24-5 5-5s5 2.24 5 5c0 1.04-.42 1.99-1.07 2.25z"/></svg>
+          </button>
+          <button type="button" class="btn-icon" id="btnRefresh" onclick="App.rafraichirProjets()" title="Rafraîchir" style="width:28px;height:28px;">
+            <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div style="margin-top:12px">
+        <label for="projectSelect" data-i18n="projet">Projet</label>
+        <select id="projectSelect" disabled>
+          <option value="" data-i18n="loading">Chargement...</option>
+        </select>
+
+        <label for="taskSelect" data-i18n="tache">Tâche</label>
+        <select id="taskSelect" disabled>
+          <option value="" data-i18n="chooseProjectFirst">Choisir un projet d'abord</option>
+        </select>
+      </div>
+    </div>
+
+    <!-- Section Chronomètre & Saisie Manuelle -->
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" data-tab-group="mode" data-tab="chrono" onclick="App.changerOnglet('chrono')">
+          <svg viewBox="0 0 24 24"><path d="M15 1H9v2h6V1zm-4 13h2V8h-2v6zm8.03-6.61l1.42-1.42c-.43-.51-.9-.99-1.41-1.41l-1.42 1.42C16.07 4.74 14.12 4 12 4c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-2.12-.74-4.07-1.97-5.61zM12 20c-3.87 0-7-3.13-7-7s3.13-7 7-7 7 3.13 7 7-3.13 7-7 7z"/></svg>
+          <span data-i18n="tabChrono">Chrono</span>
+        </div>
+        <div class="tab" data-tab-group="mode" data-tab="manual" onclick="App.changerOnglet('manual')">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          <span data-i18n="tabManual">Saisie</span>
+        </div>
+      </div>
+
+      <!-- Contenu Chrono -->
+      <div id="tab-chrono" class="tab-content active" data-tab-group-content="mode">
+        <div class="timer-display" id="display">00:00:00</div>
+
+        <div class="btn-ligne">
+          <button id="mainBtn" class="btn btn-primary" onclick="App.basculerChrono()" disabled>
+            <svg id="mainBtnIcon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+            <span id="mainBtnText" data-i18n="start">Lancer</span>
+          </button>
+          <button id="pauseBtn" class="btn btn-outline hidden" onclick="App.mettreEnPauseChrono()" disabled>
+            <svg viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+          </button>
+        </div>
+
+        <p class="status-text" id="status" data-i18n="loadingData">Chargement...</p>
+      </div>
+
+      <!-- Contenu Saisie Manuelle -->
+      <div id="tab-manual" class="tab-content" data-tab-group-content="mode">
+        <label for="manualHours" data-i18n="heuresDuree">Durée en heures</label>
+        <div class="stepper-control">
+          <button type="button" class="btn-icon" id="btnMinus" onclick="App.ajusterHeures(-0.25)" disabled style="font-size:18px;font-weight:bold;">-</button>
+          <input type="number" id="manualHours" min="-8" max="8" step="0.25" value="0.5" placeholder="Ex: 1.5" disabled>
+          <button type="button" class="btn-icon" id="btnPlus" onclick="App.ajusterHeures(0.25)" disabled style="font-size:18px;font-weight:bold;">+</button>
+        </div>
+
+        <button id="manualSaveBtn" class="btn btn-primary" onclick="App.enregistrerManuellement()" disabled>
+          <svg viewBox="0 0 24 24"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
+          <span data-i18n="save">Enregistrer</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Section Progression Quotidienne -->
+    <div class="card">
+      <div class="section-title" data-i18n="dailyProgress">Progression du jour</div>
+
+      <div class="gauge-wrap">
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <circle class="gauge-track" cx="50" cy="50" r="40" transform="rotate(-90 50 50)"></circle>
+          <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="40" transform="rotate(-90 50 50)" stroke-dasharray="251.33" stroke-dashoffset="251.33"></circle>
+        </svg>
+        <div class="gauge-text">
+          <div class="gauge-heures" id="gaugeHours">0.00h</div>
+          <div class="gauge-label" id="gaugeLabel">/ 8h</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Section Historique et Rapports -->
+    <div class="card">
+      <div class="tabs">
+        <div class="tab active" data-tab-group="period" data-tab="aujourdhui" onclick="App.changerOnglet('aujourdhui')" data-i18n="aujourdhui">Aujourd'hui</div>
+        <div class="tab" data-tab-group="period" data-tab="week" onclick="App.changerOnglet('week')" data-i18n="week">Semaine</div>
+      </div>
+
+      <div id="tab-aujourdhui" class="tab-content active" data-tab-group-content="period">
+        <div id="historyList">
+          <div class="history-empty" data-i18n="loadingData">Chargement...</div>
+        </div>
+      </div>
+
+      <div id="tab-week" class="tab-content" data-tab-group-content="period">
+        <div id="weekReport">
+          <div class="history-empty" data-i18n="loadingData">Chargement...</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Raccourcis Clavier -->
+    <div class="card" style="padding:10px 16px;">
+      <div style="font-size:10px;color:var(--outline);text-align:center;">
+        <kbd>Space</kbd> <span data-i18n="kbStartStop">Lancer/Arrêter</span>
+        &nbsp;
+        <kbd>P</kbd> <span data-i18n="pause">Pause</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Pied de page figé officiel de FF Labs -->
+  <div class="footer">
+    <div class="footer-logo">
+      <span>⚡ FF Labs</span>
+    </div>
+    <div>
+      <a href="https://faucheux.bzh" target="_blank">&lt;&gt; par Fabrice Faucheux</a>
+    </div>
+    <div class="footer-links">
+      <a href="https://github.com/FabriceFx/tracker-time" target="_blank" id="txt-footerHelp">Aide</a>
+    </div>
+  </div>
+
+  <!-- Toast Notifications -->
+  <div id="toast" class="toast">
+    <svg id="toastIcon" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-6.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+    <span id="toastMsg"></span>
+  </div>
+
+  <!-- Modal d'aide -->
+  <div class="help-overlay" id="helpOverlay" onclick="App.fermerAide(event)">
+    <div class="help-modal" id="helpModal">
+      <div class="help-header">
+        <h2 id="helpTitle">Guide d'utilisation</h2>
+        <button class="help-close" onclick="App.fermerAide()">
+          <svg viewBox="0 0 24 24"><path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <div class="help-steps" id="helpSteps">
+        <!-- Généré dynamiquement en JS -->
+      </div>
+      <div style="padding:0 20px 20px">
+        <div class="help-dots" id="helpDots"></div>
+        <div class="help-nav">
+          <button id="helpPrevBtn" class="btn btn-outline btn-sm" style="flex:0 0 auto;padding:0 14px" onclick="App.naviguerAide(-1)">Préc.</button>
+          <button id="helpNextBtn" class="btn btn-primary btn-sm" onclick="App.naviguerAide(1)">Suivant</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inclusion de la logique client (JavaScript) -->
+  <?!= include('JavaScript'); ?>
+</body>
+
+</html>
