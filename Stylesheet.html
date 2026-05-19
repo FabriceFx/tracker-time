@@ -720,11 +720,30 @@
   }
 
   .footer-logo {
+    flex: 1;
     display: flex;
     align-items: center;
+    justify-content: flex-start;
     gap: 4px;
     font-weight: 600;
     color: var(--outline);
+    white-space: nowrap;
+  }
+
+  .footer-author {
+    flex: 1.2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+  }
+
+  .footer-links {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    white-space: nowrap;
   }
 
   .footer a {
